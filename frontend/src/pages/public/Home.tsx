@@ -8,7 +8,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/60" />
         <div className="relative z-10 text-center text-white px-4 max-w-3xl">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 tracking-tight">
-            MAD <span className="text-accent">Photography</span>
+            MAD <span className="text-accent">Photos</span>
           </h1>
           <p className="text-lg sm:text-xl text-gray-200 mb-8 max-w-xl mx-auto">
             Capturing your most meaningful moments with artistry and authenticity.

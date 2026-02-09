@@ -19,7 +19,7 @@ export default function PublicLayout() {
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="text-2xl font-bold tracking-tight text-primary">
-              MAD <span className="text-accent">Photography</span>
+              MAD <span className="text-accent">Photos</span>
             </Link>
 
             {/* Desktop nav */}
@@ -99,7 +99,7 @@ export default function PublicLayout() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
               <h3 className="text-xl font-bold mb-3">
-                MAD <span className="text-accent">Photography</span>
+                MAD <span className="text-accent">Photos</span>
               </h3>
               <p className="text-gray-400 text-sm">
                 Capturing moments that matter.
@@ -125,7 +125,7 @@ export default function PublicLayout() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-500">
-            &copy; {new Date().getFullYear()} MAD Photography. All rights reserved.
+            &copy; {new Date().getFullYear()} MAD Photos. All rights reserved.
           </div>
         </div>
       </footer>

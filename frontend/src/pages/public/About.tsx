@@ -27,7 +27,7 @@ export default function About() {
           <div className="bg-surface rounded-xl p-8">
             <h2 className="text-2xl font-bold text-primary mb-4">Our Story</h2>
             <p className="text-gray-600 leading-relaxed">
-              MAD Photography was born from a passion for storytelling through images. We believe every moment
+              MAD Photos was born from a passion for storytelling through images. We believe every moment
               has a story worth preserving, and our mission is to capture those stories with authenticity,
               creativity, and care.
             </p>
