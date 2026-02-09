@@ -28,6 +28,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="MAD Photography API", lifespan=lifespan)
 
+# Vercel Backend Configuration 
+@app.get("/") 
+def read_root(): 
+    return {"Python" : "on Vercel"}
+
 settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
