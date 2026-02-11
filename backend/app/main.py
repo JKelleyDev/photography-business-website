@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fast.api.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import connect_db, close_db
@@ -62,4 +63,4 @@ app.include_router(client_invoices.router, prefix="/api/client/invoices", tags=[
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok"}
+    return JSONResponse(content={"status": "healthy"}, status_code=200)
