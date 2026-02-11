@@ -32,7 +32,7 @@ The application is split into three independently deployable services:
                          │  VITE_API_URL env var
                          │
 ┌────────────────────────▼────────────────────────────────┐
-│                   FastAPI Backend                         │
+│                   FastAPI Backend                       │
 │  ┌──────────┐  ┌──────────┐  ┌────────────────────────┐ │
 │  │   Auth   │  │ Projects │  │  Invoicing (manual     │ │
 │  │ Service  │  │ & Media  │  │  Venmo/PayPal/Zelle)   │ │
@@ -41,7 +41,7 @@ The application is split into three independently deployable services:
 │  │  S3      │  │ Gallery  │  │  Portfolio / Pricing   │ │
 │  │ Service  │  │ Service  │  │  / Reviews / Settings  │ │
 │  └──────────┘  └──────────┘  └────────────────────────┘ │
-│               Hosted on its own service                  │
+│               Deployed on Render                        │
 └────────┬────────────────────────┬───────────────────────┘
          │                        │
     ┌────▼─────┐            ┌─────▼─────┐
@@ -204,7 +204,7 @@ All variables are read from the environment at runtime. Copy `.env.example` to c
 
 - [Node.js](https://nodejs.org/) 20+
 - [Python](https://python.org/) 3.11+
-- [Docker](https://docker.com/) and Docker Compose (for MongoDB, or use a local MongoDB install)
+- [Docker](https://docker.com/) and Docker Compose (for MongoDB and API server, or use a local MongoDB install)
 
 ### Step 1: Start MongoDB + Backend (Docker Compose)
 
@@ -358,8 +358,7 @@ Use [MongoDB Atlas](https://www.mongodb.com/atlas) (free tier available) or any 
 
 Navigate to `/login` and sign in with the credentials created by the seed script.
 
-> ![Login page screenshot]
-> *`<!-- INSERT SCREENSHOT: Login page -->`*
+<img width="1447" height="815" alt="Screenshot 2026-02-11 at 5 26 19 PM" src="https://github.com/user-attachments/assets/30967b2e-cc23-4f7f-a772-88fff7fd20f8" />
 
 ### Dashboard
 
