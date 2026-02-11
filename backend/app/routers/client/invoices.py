@@ -1,9 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
-from bson import ObjectId
+from fastapi import APIRouter, Depends
 from app.database import get_database
 from app.middleware.auth import require_client
 from app.schemas.invoice import InvoiceResponse
-from app.services.stripe_service import get_stripe_invoice
 
 router = APIRouter()
 
@@ -11,7 +9,7 @@ router = APIRouter()
 @router.get("")
 async def list_my_invoices(user: dict = Depends(require_client)):
     db = get_database()
-    cursor = db.invoices.find({"client_id": user["_id"]}).sort("created_at", -1)
+    cursor = db.invoices.find({"client_id": str(user["_id"])}).sort("created_at", -1)
     items = []
     async for inv in cursor:
         items.append(InvoiceResponse(
@@ -27,15 +25,3 @@ async def list_my_invoices(user: dict = Depends(require_client)):
             paid_at=inv.get("paid_at"),
         ))
     return {"invoices": items}
-
-
-@router.post("/{invoice_id}/pay")
-async def pay_invoice(invoice_id: str, user: dict = Depends(require_client)):
-    db = get_database()
-    inv = await db.invoices.find_one({"_id": ObjectId(invoice_id), "client_id": user["_id"]})
-    if not inv:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-    if not inv.get("stripe_invoice_id"):
-        raise HTTPException(status_code=400, detail="No payment link available")
-    stripe_info = get_stripe_invoice(inv["stripe_invoice_id"])
-    return {"payment_url": stripe_info.get("hosted_invoice_url")}

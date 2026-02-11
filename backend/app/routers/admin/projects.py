@@ -15,6 +15,7 @@ from app.services.auth import hash_password, create_invite_token
 from app.services.email import send_invite_email, send_gallery_link_email
 from app.services.s3 import delete_prefix_from_s3
 from app.utils.tokens import generate_share_token
+from app.models.invoice import new_invoice
 
 router = APIRouter()
 
@@ -129,11 +130,28 @@ async def deliver_project(project_id: str, body: DeliverProjectRequest, admin: d
     if body.project_expires_at:
         update["project_expires_at"] = body.project_expires_at
     await db.projects.update_one({"_id": ObjectId(project_id)}, {"$set": update})
+    # Optionally create an invoice
+    invoice_token = None
+    if body.create_invoice:
+        if not body.invoice_line_items or not body.invoice_due_date:
+            raise HTTPException(status_code=400, detail="Line items and due date required when creating an invoice")
+        total_cents = sum(li.amount_cents * li.quantity for li in body.invoice_line_items)
+        line_items_dicts = [li.model_dump() for li in body.invoice_line_items]
+        invoice = new_invoice(
+            client_id=str(project["client_id"]),
+            amount_cents=total_cents,
+            line_items=line_items_dicts,
+            due_date=body.invoice_due_date,
+            project_id=project_id,
+        )
+        invoice["status"] = "sent"
+        await db.invoices.insert_one(invoice)
+        invoice_token = invoice["token"]
     # Notify client
     client = await db.users.find_one({"_id": ObjectId(project["client_id"])})
     if client:
         send_gallery_link_email(client["email"], client.get("name", ""), token, project["title"])
-    return {"share_link_token": token, "message": "Project delivered"}
+    return {"share_link_token": token, "invoice_token": invoice_token, "message": "Project delivered"}
 
 
 @router.put("/{project_id}/archive")

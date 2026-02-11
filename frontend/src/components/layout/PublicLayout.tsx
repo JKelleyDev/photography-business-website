@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
+import { useSettings } from '../../context/SettingsContext';
+import { formatPhone } from '../../utils/formatCurrency';
 
 const navLinks = [
   { to: '/', label: 'Home' },
@@ -12,6 +14,7 @@ const navLinks = [
 export default function PublicLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const settings = useSettings();
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -104,6 +107,19 @@ export default function PublicLayout() {
               <p className="text-gray-400 text-sm">
                 Capturing moments that matter.
               </p>
+              {settings.business_phone && (
+                <p className="text-gray-400 text-sm mt-2">
+                  <a href={`tel:${settings.business_phone}`} className="hover:text-white transition-colors">{formatPhone(settings.business_phone)}</a>
+                </p>
+              )}
+              {settings.business_email && (
+                <p className="text-gray-400 text-sm mt-1">
+                  <a href={`mailto:${settings.business_email}`} className="hover:text-white transition-colors">{settings.business_email}</a>
+                </p>
+              )}
+              {settings.business_address && (
+                <p className="text-gray-400 text-sm mt-1">{settings.business_address}</p>
+              )}
             </div>
             <div>
               <h4 className="font-semibold mb-3 text-accent">Quick Links</h4>
@@ -117,10 +133,19 @@ export default function PublicLayout() {
             </div>
             <div>
               <h4 className="font-semibold mb-3 text-accent">Connect</h4>
-              <div className="flex gap-4 text-gray-400">
-                <span className="text-sm">Instagram</span>
-                <span className="text-sm">Facebook</span>
-                <span className="text-sm">TikTok</span>
+              <div className="flex flex-col gap-2">
+                {settings.instagram_url && (
+                  <a href={settings.instagram_url} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-white transition-colors">Instagram</a>
+                )}
+                {settings.facebook_url && (
+                  <a href={settings.facebook_url} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-white transition-colors">Facebook</a>
+                )}
+                {settings.tiktok_url && (
+                  <a href={settings.tiktok_url} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-white transition-colors">TikTok</a>
+                )}
+                {!settings.instagram_url && !settings.facebook_url && !settings.tiktok_url && (
+                  <p className="text-sm text-gray-500">Coming soon</p>
+                )}
               </div>
             </div>
           </div>

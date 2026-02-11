@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/client';
-import { Inquiry } from '../../types';
+import { Inquiry, PricingPackage } from '../../types';
 import { formatDateTime } from '../../utils/dateHelpers';
+import { formatCurrency, formatPhone } from '../../utils/formatCurrency';
 import Button from '../../components/ui/Button';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
@@ -14,13 +15,22 @@ const statusColors: Record<string, string> = {
 
 export default function InquiryList() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const [packages, setPackages] = useState<Record<string, PricingPackage>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const { data } = await api.get('/admin/inquiries');
-    setInquiries(data.inquiries);
+    const [inqRes, pkgRes] = await Promise.all([
+      api.get('/admin/inquiries'),
+      api.get('/admin/pricing'),
+    ]);
+    setInquiries(inqRes.data.inquiries);
+    const pkgMap: Record<string, PricingPackage> = {};
+    for (const pkg of pkgRes.data.packages) {
+      pkgMap[pkg.id] = pkg;
+    }
+    setPackages(pkgMap);
     setLoading(false);
   }
 
@@ -38,34 +48,65 @@ export default function InquiryList() {
         {inquiries.length === 0 ? (
           <p className="text-muted text-center py-12">No inquiries yet.</p>
         ) : (
-          inquiries.map((inq) => (
-            <div key={inq.id} className="bg-white border rounded-lg p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold">{inq.name}</h3>
-                  <p className="text-sm text-muted">{inq.email} {inq.phone && `| ${inq.phone}`}</p>
-                  {inq.event_date && <p className="text-xs text-muted mt-1">Event: {formatDateTime(inq.event_date)}</p>}
+          inquiries.map((inq) => {
+            const pkg = inq.package_id ? packages[inq.package_id] : null;
+            return (
+              <div key={inq.id} className="bg-white border rounded-lg p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="font-semibold text-lg">{inq.name}</h3>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted mt-1">
+                      <a href={`mailto:${inq.email}`} className="hover:text-accent">{inq.email}</a>
+                      {inq.phone && <a href={`tel:${inq.phone}`} className="hover:text-accent">{formatPhone(inq.phone)}</a>}
+                    </div>
+                  </div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ${statusColors[inq.status]}`}>
+                    {inq.status}
+                  </span>
                 </div>
-                <span className={`text-xs font-medium px-2 py-1 rounded-full ${statusColors[inq.status]}`}>
-                  {inq.status}
-                </span>
+
+                {(inq.event_date || pkg) && (
+                  <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm mb-3">
+                    {pkg && (
+                      <div>
+                        <span className="text-muted">Package:</span>{' '}
+                        <span className="font-medium text-primary">{pkg.name}</span>
+                        {!pkg.is_custom && (
+                          <span className="text-muted ml-1">({pkg.price_display || formatCurrency(pkg.price_cents)})</span>
+                        )}
+                      </div>
+                    )}
+                    {inq.event_date && (
+                      <div>
+                        <span className="text-muted">Event Date:</span>{' '}
+                        <span className="font-medium">{formatDateTime(inq.event_date)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 mb-3">
+                  {inq.message}
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex gap-2">
+                    {['new', 'contacted', 'booked', 'closed'].map((s) => (
+                      <Button
+                        key={s}
+                        size="sm"
+                        variant={inq.status === s ? 'primary' : 'ghost'}
+                        onClick={() => updateStatus(inq.id, s)}
+                      >
+                        {s}
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted">{formatDateTime(inq.created_at)}</p>
+                </div>
               </div>
-              <p className="text-sm text-gray-700 mt-3">{inq.message}</p>
-              <div className="flex gap-2 mt-3">
-                {['new', 'contacted', 'booked', 'closed'].map((s) => (
-                  <Button
-                    key={s}
-                    size="sm"
-                    variant={inq.status === s ? 'primary' : 'ghost'}
-                    onClick={() => updateStatus(inq.id, s)}
-                  >
-                    {s}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-xs text-muted mt-2">{formatDateTime(inq.created_at)}</p>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

@@ -17,9 +17,18 @@ class UpdateProjectRequest(BaseModel):
     cover_image_key: str | None = None
 
 
+class DeliverLineItem(BaseModel):
+    description: str
+    amount_cents: int
+    quantity: int = 1
+
+
 class DeliverProjectRequest(BaseModel):
     share_link_expires_at: datetime | None = None
     project_expires_at: datetime | None = None
+    create_invoice: bool = False
+    invoice_line_items: list[DeliverLineItem] | None = None
+    invoice_due_date: datetime | None = None
 
 
 class ProjectResponse(BaseModel):

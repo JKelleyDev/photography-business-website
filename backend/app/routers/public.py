@@ -7,6 +7,7 @@ from app.schemas.pricing import PricingResponse
 from app.schemas.inquiry import CreateInquiryRequest, InquiryResponse
 from app.schemas.review import CreateReviewRequest, ReviewResponse
 from app.schemas.settings import SettingResponse
+from app.schemas.invoice import PublicInvoiceResponse
 from app.models.inquiry import new_inquiry
 from app.models.review import new_review
 
@@ -123,6 +124,16 @@ async def submit_review(body: CreateReviewRequest):
     return {"id": str(result.inserted_id), "message": "Review submitted and pending approval"}
 
 
+@router.get("/settings")
+async def list_public_settings():
+    db = get_database()
+    cursor = db.site_settings.find()
+    items = []
+    async for s in cursor:
+        items.append(SettingResponse(key=s["key"], value=s["value"]))
+    return {"settings": items}
+
+
 @router.get("/settings/{key}")
 async def get_setting(key: str):
     db = get_database()
@@ -130,3 +141,21 @@ async def get_setting(key: str):
     if not setting:
         raise HTTPException(status_code=404, detail="Setting not found")
     return SettingResponse(key=setting["key"], value=setting["value"])
+
+
+@router.get("/invoice/{token}")
+async def get_public_invoice(token: str):
+    db = get_database()
+    inv = await db.invoices.find_one({"token": token})
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    business_name_setting = await db.site_settings.find_one({"key": "business_name"})
+    business_name = business_name_setting["value"] if business_name_setting else "MAD Photos"
+    return PublicInvoiceResponse(
+        amount_cents=inv["amount_cents"],
+        status=inv["status"],
+        due_date=inv["due_date"],
+        line_items=inv["line_items"],
+        paid_at=inv.get("paid_at"),
+        business_name=business_name,
+    )

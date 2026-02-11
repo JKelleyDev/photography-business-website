@@ -16,6 +16,9 @@ export default function ProjectDetail() {
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [showDeliver, setShowDeliver] = useState(false);
   const [deliverForm, setDeliverForm] = useState({ share_link_expires_at: '', project_expires_at: '' });
+  const [createInvoice, setCreateInvoice] = useState(false);
+  const [invoiceDueDate, setInvoiceDueDate] = useState('');
+  const [invoiceLineItems, setInvoiceLineItems] = useState([{ description: '', amount_dollars: '', quantity: 1 }]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { loadProject(); }, [id]);
@@ -60,10 +63,20 @@ export default function ProjectDetail() {
 
   async function handleDeliver(e: React.FormEvent) {
     e.preventDefault();
-    await api.post(`/admin/projects/${id}/deliver`, {
+    const payload: any = {
       share_link_expires_at: deliverForm.share_link_expires_at || null,
       project_expires_at: deliverForm.project_expires_at || null,
-    });
+      create_invoice: createInvoice,
+    };
+    if (createInvoice) {
+      payload.invoice_line_items = invoiceLineItems.map((li) => ({
+        description: li.description,
+        amount_cents: Math.round(parseFloat(li.amount_dollars || '0') * 100),
+        quantity: li.quantity,
+      }));
+      payload.invoice_due_date = new Date(invoiceDueDate).toISOString();
+    }
+    await api.post(`/admin/projects/${id}/deliver`, payload);
     setShowDeliver(false);
     loadProject();
   }
@@ -197,6 +210,46 @@ export default function ProjectDetail() {
             <input type="datetime-local" value={deliverForm.project_expires_at} onChange={(e) => setDeliverForm({ ...deliverForm, project_expires_at: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent" />
             <p className="text-xs text-muted mt-1">After this date, media will be deleted to save storage costs.</p>
           </div>
+
+          {/* Invoice option */}
+          <div className="border-t pt-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={createInvoice} onChange={(e) => setCreateInvoice(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent" />
+              <span className="text-sm font-medium">Create invoice for this project</span>
+            </label>
+            <p className="text-xs text-muted mt-1 ml-6">Downloads will be locked until the invoice is paid.</p>
+          </div>
+
+          {createInvoice && (
+            <div className="space-y-3 bg-gray-50 rounded-lg p-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Due Date *</label>
+                <input type="date" required value={invoiceDueDate} onChange={(e) => setInvoiceDueDate(e.target.value)} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Line Items</label>
+                <div className="space-y-2">
+                  {invoiceLineItems.map((item, idx) => (
+                    <div key={idx} className="flex gap-2 items-start">
+                      <input type="text" placeholder="Description" required value={item.description} onChange={(e) => { const u = [...invoiceLineItems]; u[idx] = { ...u[idx], description: e.target.value }; setInvoiceLineItems(u); }} className="flex-1 px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent text-sm" />
+                      <input type="number" step="0.01" min="0" placeholder="$ Amount" required value={item.amount_dollars} onChange={(e) => { const u = [...invoiceLineItems]; u[idx] = { ...u[idx], amount_dollars: e.target.value }; setInvoiceLineItems(u); }} className="w-28 px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent text-sm" />
+                      <input type="number" min={1} value={item.quantity} onChange={(e) => { const u = [...invoiceLineItems]; u[idx] = { ...u[idx], quantity: Number(e.target.value) }; setInvoiceLineItems(u); }} className="w-16 px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent text-sm" />
+                      {invoiceLineItems.length > 1 && (
+                        <button type="button" onClick={() => setInvoiceLineItems(invoiceLineItems.filter((_, i) => i !== idx))} className="text-red-500 hover:text-red-700 p-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button type="button" onClick={() => setInvoiceLineItems([...invoiceLineItems, { description: '', amount_dollars: '', quantity: 1 }])} className="mt-2 text-sm text-accent hover:underline">+ Add line item</button>
+              </div>
+              <div className="border-t pt-2 text-right">
+                <p className="text-sm font-bold">Total: ${invoiceLineItems.reduce((sum, li) => sum + parseFloat(li.amount_dollars || '0') * li.quantity, 0).toFixed(2)}</p>
+              </div>
+            </div>
+          )}
+
           <Button type="submit" className="w-full" size="lg">Deliver & Notify Client</Button>
         </form>
       </Modal>

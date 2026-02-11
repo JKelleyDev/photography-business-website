@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime
 
 
@@ -17,6 +18,7 @@ def new_invoice(
         "status": "draft",
         "due_date": due_date,
         "line_items": line_items,
+        "token": secrets.token_urlsafe(24),
         "created_at": datetime.utcnow(),
         "paid_at": None,
     }

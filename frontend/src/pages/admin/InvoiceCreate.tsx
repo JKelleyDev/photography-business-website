@@ -6,7 +6,7 @@ import Button from '../../components/ui/Button';
 
 interface LineItem {
   description: string;
-  amount_cents: number;
+  amount_dollars: string;
   quantity: number;
 }
 
@@ -14,7 +14,7 @@ export default function InvoiceCreate() {
   const [clients, setClients] = useState<User[]>([]);
   const [clientId, setClientId] = useState('');
   const [dueDate, setDueDate] = useState('');
-  const [lineItems, setLineItems] = useState<LineItem[]>([{ description: '', amount_cents: 0, quantity: 1 }]);
+  const [lineItems, setLineItems] = useState<LineItem[]>([{ description: '', amount_dollars: '', quantity: 1 }]);
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
@@ -23,7 +23,7 @@ export default function InvoiceCreate() {
   }, []);
 
   function addLineItem() {
-    setLineItems([...lineItems, { description: '', amount_cents: 0, quantity: 1 }]);
+    setLineItems([...lineItems, { description: '', amount_dollars: '', quantity: 1 }]);
   }
 
   function updateLineItem(index: number, field: keyof LineItem, value: string | number) {
@@ -42,7 +42,11 @@ export default function InvoiceCreate() {
     try {
       await api.post('/admin/invoices', {
         client_id: clientId,
-        line_items: lineItems,
+        line_items: lineItems.map((li) => ({
+          description: li.description,
+          amount_cents: Math.round(parseFloat(li.amount_dollars || '0') * 100),
+          quantity: li.quantity,
+        })),
         due_date: new Date(dueDate).toISOString(),
       });
       navigate('/admin/invoices');
@@ -53,7 +57,7 @@ export default function InvoiceCreate() {
     }
   }
 
-  const total = lineItems.reduce((sum, li) => sum + li.amount_cents * li.quantity, 0);
+  const total = lineItems.reduce((sum, li) => sum + parseFloat(li.amount_dollars || '0') * li.quantity, 0);
 
   return (
     <div className="max-w-2xl">
@@ -79,7 +83,7 @@ export default function InvoiceCreate() {
             {lineItems.map((item, idx) => (
               <div key={idx} className="flex gap-2 items-start">
                 <input type="text" placeholder="Description" required value={item.description} onChange={(e) => updateLineItem(idx, 'description', e.target.value)} className="flex-1 px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent text-sm" />
-                <input type="number" placeholder="Amount (cents)" required value={item.amount_cents || ''} onChange={(e) => updateLineItem(idx, 'amount_cents', Number(e.target.value))} className="w-28 px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent text-sm" />
+                <input type="number" step="0.01" min="0" placeholder="Amount ($)" required value={item.amount_dollars} onChange={(e) => updateLineItem(idx, 'amount_dollars', e.target.value)} className="w-28 px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent text-sm" />
                 <input type="number" min={1} value={item.quantity} onChange={(e) => updateLineItem(idx, 'quantity', Number(e.target.value))} className="w-16 px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent text-sm" />
                 {lineItems.length > 1 && (
                   <button type="button" onClick={() => removeLineItem(idx)} className="text-red-500 hover:text-red-700 p-2">
@@ -95,7 +99,7 @@ export default function InvoiceCreate() {
         </div>
 
         <div className="border-t pt-4 text-right">
-          <p className="text-lg font-bold">Total: ${(total / 100).toFixed(2)}</p>
+          <p className="text-lg font-bold">Total: ${total.toFixed(2)}</p>
         </div>
 
         <Button type="submit" disabled={submitting} className="w-full" size="lg">

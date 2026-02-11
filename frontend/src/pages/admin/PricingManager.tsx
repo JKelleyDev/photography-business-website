@@ -6,11 +6,14 @@ import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
+const emptyForm = { name: '', description: '', price_dollars: '', price_display: '', features: '', is_custom: false };
+
 export default function PricingManager() {
   const [packages, setPackages] = useState<PricingPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', price_cents: 0, price_display: '', features: '', is_custom: false });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyForm);
 
   useEffect(() => { load(); }, []);
 
@@ -20,14 +23,48 @@ export default function PricingManager() {
     setLoading(false);
   }
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    await api.post('/admin/pricing', {
-      ...form,
-      features: form.features.split('\n').filter(Boolean),
+  function openCreate() {
+    setEditingId(null);
+    setForm(emptyForm);
+    setShowForm(true);
+  }
+
+  function openEdit(pkg: PricingPackage) {
+    setEditingId(pkg.id);
+    setForm({
+      name: pkg.name,
+      description: pkg.description,
+      price_dollars: (pkg.price_cents / 100).toFixed(2),
+      price_display: pkg.price_display || '',
+      features: pkg.features.join('\n'),
+      is_custom: pkg.is_custom,
     });
+    setShowForm(true);
+  }
+
+  function closeForm() {
     setShowForm(false);
-    setForm({ name: '', description: '', price_cents: 0, price_display: '', features: '', is_custom: false });
+    setEditingId(null);
+    setForm(emptyForm);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const priceCents = Math.round(parseFloat(form.price_dollars || '0') * 100);
+    const payload = {
+      name: form.name,
+      description: form.description,
+      price_cents: priceCents,
+      price_display: form.price_display,
+      features: form.features.split('\n').filter(Boolean),
+      is_custom: form.is_custom,
+    };
+    if (editingId) {
+      await api.put(`/admin/pricing/${editingId}`, payload);
+    } else {
+      await api.post('/admin/pricing', payload);
+    }
+    closeForm();
     load();
   }
 
@@ -43,7 +80,7 @@ export default function PricingManager() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-primary">Pricing Packages</h1>
-        <Button onClick={() => setShowForm(true)}>Add Package</Button>
+        <Button onClick={openCreate}>Add Package</Button>
       </div>
 
       <div className="space-y-4">
@@ -55,14 +92,15 @@ export default function PricingManager() {
               <p className="text-xs text-muted mt-1">{pkg.features.length} features</p>
             </div>
             <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={() => openEdit(pkg)}>Edit</Button>
               <Button variant="danger" size="sm" onClick={() => handleDelete(pkg.id)}>Delete</Button>
             </div>
           </div>
         ))}
       </div>
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Add Pricing Package">
-        <form onSubmit={handleCreate} className="space-y-4">
+      <Modal open={showForm} onClose={closeForm} title={editingId ? 'Edit Package' : 'Add Pricing Package'}>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1">Name *</label>
             <input type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent" />
@@ -73,8 +111,8 @@ export default function PricingManager() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Price (cents)</label>
-              <input type="number" value={form.price_cents} onChange={(e) => setForm({ ...form, price_cents: Number(e.target.value) })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent" />
+              <label className="block text-sm font-medium mb-1">Price ($)</label>
+              <input type="number" step="0.01" min="0" placeholder="500.00" value={form.price_dollars} onChange={(e) => setForm({ ...form, price_dollars: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent" />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Display Price</label>
@@ -89,7 +127,7 @@ export default function PricingManager() {
             <input type="checkbox" checked={form.is_custom} onChange={(e) => setForm({ ...form, is_custom: e.target.checked })} />
             Custom quote (hide price, show "Contact for pricing")
           </label>
-          <Button type="submit" className="w-full">Create Package</Button>
+          <Button type="submit" className="w-full">{editingId ? 'Save Changes' : 'Create Package'}</Button>
         </form>
       </Modal>
     </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import api from '../../api/client';
 import { Media } from '../../types';
 import ImageGrid from '../../components/ui/ImageGrid';
@@ -16,6 +16,8 @@ export default function SharedGallery() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
+  const [downloadsLocked, setDownloadsLocked] = useState(false);
+  const [invoiceToken, setInvoiceToken] = useState<string | null>(null);
 
   useEffect(() => {
     loadGallery();
@@ -28,6 +30,8 @@ export default function SharedGallery() {
         api.get(`/gallery/${token}/media`),
       ]);
       setGallery(galleryRes.data);
+      setDownloadsLocked(galleryRes.data.downloads_locked ?? false);
+      setInvoiceToken(galleryRes.data.invoice_token ?? null);
       setMedia(mediaRes.data.media);
       const preSelected = new Set<string>(
         mediaRes.data.media.filter((m: Media) => m.is_selected).map((m: Media) => m.id)
@@ -76,8 +80,12 @@ export default function SharedGallery() {
       a.download = `${gallery?.title || 'photos'}_selected.zip`;
       a.click();
       window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Download failed', err);
+    } catch (err: any) {
+      if (err.response?.status === 402) {
+        setDownloadsLocked(true);
+      } else {
+        console.error('Download failed', err);
+      }
     } finally {
       setDownloading(false);
     }
@@ -93,8 +101,12 @@ export default function SharedGallery() {
       a.download = `${gallery?.title || 'photos'}_all.zip`;
       a.click();
       window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Download failed', err);
+    } catch (err: any) {
+      if (err.response?.status === 402) {
+        setDownloadsLocked(true);
+      } else {
+        console.error('Download failed', err);
+      }
     } finally {
       setDownloading(false);
     }
@@ -111,8 +123,12 @@ export default function SharedGallery() {
       a.download = `${gallery?.title || 'photos'}_for_printing.zip`;
       a.click();
       window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Export failed', err);
+    } catch (err: any) {
+      if (err.response?.status === 402) {
+        setDownloadsLocked(true);
+      } else {
+        console.error('Export failed', err);
+      }
     } finally {
       setDownloading(false);
     }
@@ -153,6 +169,22 @@ export default function SharedGallery() {
         </div>
       </div>
 
+      {/* Payment banner */}
+      {downloadsLocked && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+            <p className="text-sm text-amber-800">
+              Downloads will be available after payment is received.
+            </p>
+            {invoiceToken && (
+              <Link to={`/invoice/${invoiceToken}`} className="text-sm font-semibold text-amber-900 underline hover:text-amber-700">
+                View Invoice
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Gallery */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         <ImageGrid
@@ -175,14 +207,14 @@ export default function SharedGallery() {
               variant="secondary"
               size="sm"
               onClick={handleDownloadAll}
-              disabled={downloading}
+              disabled={downloading || downloadsLocked}
             >
               Download All
             </Button>
             <Button
               size="sm"
               onClick={handleDownloadSelected}
-              disabled={downloading || selectedIds.size === 0}
+              disabled={downloading || selectedIds.size === 0 || downloadsLocked}
             >
               Download Selected ({selectedIds.size})
             </Button>
@@ -190,7 +222,7 @@ export default function SharedGallery() {
               variant="secondary"
               size="sm"
               onClick={handleExportForPrinting}
-              disabled={downloading || selectedIds.size === 0}
+              disabled={downloading || selectedIds.size === 0 || downloadsLocked}
             >
               Export for Printing
             </Button>

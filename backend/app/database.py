@@ -48,4 +48,5 @@ async def _create_indexes() -> None:
     await db.pricing_packages.create_index([("sort_order", ASCENDING)])
     await db.reviews.create_index([("is_approved", ASCENDING)])
     await db.invoices.create_index([("client_id", ASCENDING)])
+    await db.invoices.create_index([("token", ASCENDING)], unique=True)
     await db.site_settings.create_index([("key", ASCENDING)], unique=True)

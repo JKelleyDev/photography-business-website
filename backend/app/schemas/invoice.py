@@ -24,5 +24,15 @@ class InvoiceResponse(BaseModel):
     status: str
     due_date: datetime
     line_items: list[dict]
+    token: str = ""
     created_at: datetime
     paid_at: datetime | None
+
+
+class PublicInvoiceResponse(BaseModel):
+    amount_cents: int
+    status: str
+    due_date: datetime
+    line_items: list[dict]
+    paid_at: datetime | None
+    business_name: str = ""

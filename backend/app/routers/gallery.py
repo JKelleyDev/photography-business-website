@@ -22,15 +22,27 @@ async def _get_valid_project(token: str) -> dict:
     return project
 
 
+async def _get_unpaid_invoice(project_id: str) -> dict | None:
+    db = get_database()
+    return await db.invoices.find_one({
+        "project_id": project_id,
+        "status": {"$nin": ["paid", "void"]},
+    })
+
+
 @router.get("/{token}")
 async def get_gallery(token: str):
     project = await _get_valid_project(token)
+    project_id = str(project["_id"])
+    unpaid = await _get_unpaid_invoice(project_id)
     return {
         "title": project["title"],
         "description": project["description"],
         "status": project["status"],
         "categories": project["categories"],
         "share_link_expires_at": project.get("share_link_expires_at"),
+        "downloads_locked": unpaid is not None,
+        "invoice_token": unpaid.get("token") if unpaid else None,
     }
 
 
@@ -75,8 +87,10 @@ async def select_media(token: str, body: SelectMediaRequest):
 @router.get("/{token}/download")
 async def download_selected(token: str):
     project = await _get_valid_project(token)
-    db = get_database()
     project_id = str(project["_id"])
+    if await _get_unpaid_invoice(project_id):
+        raise HTTPException(status_code=402, detail="Downloads are locked until the invoice is paid")
+    db = get_database()
     cursor = db.media.find({"project_id": project_id, "is_selected": True})
     keys_and_names = []
     async for m in cursor:
@@ -94,8 +108,10 @@ async def download_selected(token: str):
 @router.get("/{token}/download-all")
 async def download_all(token: str):
     project = await _get_valid_project(token)
-    db = get_database()
     project_id = str(project["_id"])
+    if await _get_unpaid_invoice(project_id):
+        raise HTTPException(status_code=402, detail="Downloads are locked until the invoice is paid")
+    db = get_database()
     cursor = db.media.find({"project_id": project_id})
     keys_and_names = []
     async for m in cursor:
@@ -113,8 +129,10 @@ async def download_all(token: str):
 @router.post("/{token}/shutterfly-export")
 async def shutterfly_export(token: str):
     project = await _get_valid_project(token)
-    db = get_database()
     project_id = str(project["_id"])
+    if await _get_unpaid_invoice(project_id):
+        raise HTTPException(status_code=402, detail="Downloads are locked until the invoice is paid")
+    db = get_database()
     cursor = db.media.find({"project_id": project_id, "is_selected": True})
     keys_and_names = []
     async for m in cursor:

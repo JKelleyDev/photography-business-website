@@ -92,6 +92,7 @@ export interface Invoice {
   status: 'draft' | 'sent' | 'paid' | 'void';
   due_date: string;
   line_items: { description: string; amount_cents: number; quantity: number }[];
+  token: string;
   created_at: string;
   paid_at?: string;
 }

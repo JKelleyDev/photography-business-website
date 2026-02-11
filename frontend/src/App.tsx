@@ -24,6 +24,9 @@ import ResetPassword from './pages/auth/ResetPassword';
 import SharedGallery from './pages/gallery/SharedGallery';
 import ImageView from './pages/gallery/ImageView';
 
+// Public invoice
+import InvoicePublic from './pages/public/InvoicePublic';
+
 // Admin pages
 import Dashboard from './pages/admin/Dashboard';
 import PortfolioManager from './pages/admin/PortfolioManager';
@@ -71,6 +74,9 @@ export default function App() {
       {/* Shared gallery (standalone layout) */}
       <Route path="/gallery/:token" element={<SharedGallery />} />
       <Route path="/gallery/:token/:mediaId" element={<ImageView />} />
+
+      {/* Public invoice (no auth required) */}
+      <Route path="/invoice/:token" element={<InvoicePublic />} />
 
       {/* Admin pages */}
       <Route
