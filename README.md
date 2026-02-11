@@ -364,22 +364,20 @@ Navigate to `/login` and sign in with the credentials created by the seed script
 
 The admin dashboard shows a summary of active projects, pending inquiries, and recent invoices.
 
-> ![Dashboard screenshot]
-> *`<!-- INSERT SCREENSHOT: Admin dashboard -->`*
+<img width="1463" height="829" alt="Screenshot 2026-02-11 at 5 27 57 PM" src="https://github.com/user-attachments/assets/48c7336d-2023-4788-b570-a07b9a88563d" />
 
 ### Managing Portfolio
 
 Navigate to **Portfolio** in the admin sidebar to add, edit, reorder, and delete portfolio items that appear on the public site.
 
-> ![Portfolio manager screenshot]
-> *`<!-- INSERT SCREENSHOT: Admin portfolio manager -->`*
+<img width="1455" height="817" alt="Screenshot 2026-02-11 at 5 28 18 PM" src="https://github.com/user-attachments/assets/b23d4752-a449-4965-91dc-e5800f47848e" />
 
 ### Managing Pricing Packages
 
 Navigate to **Pricing** to create and manage pricing packages displayed on the public pricing page.
 
-> ![Pricing manager screenshot]
-> *`<!-- INSERT SCREENSHOT: Admin pricing manager -->`*
+<img width="1462" height="826" alt="Screenshot 2026-02-11 at 5 28 34 PM" src="https://github.com/user-attachments/assets/6b3e51f5-415b-4470-930d-f62eac4a4384" />
+
 
 ### Managing Inquiries
 
@@ -399,8 +397,8 @@ Approve, reject, or delete client reviews. Only approved reviews appear on the p
 
 Edit business contact information, social media links, payment method settings (Venmo/PayPal/Zelle usernames), and other site-wide configuration.
 
-> ![Site settings screenshot]
-> *`<!-- INSERT SCREENSHOT: Admin site settings -->`*
+<img width="368" height="706" alt="Screenshot 2026-02-11 at 5 30 19 PM" src="https://github.com/user-attachments/assets/5a07b3dd-f507-4456-a32b-612cf824596f" />
+
 
 ---
 
