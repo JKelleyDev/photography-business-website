@@ -33,8 +33,7 @@ app = FastAPI(title="MAD Photography API", lifespan=lifespan)
 settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
-    #allow_origins=[settings.FRONTEND_URL],
-    allow_origins=["*"],
+    allow_origins=[settings.FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -62,6 +61,6 @@ app.include_router(client_projects.router, prefix="/api/client/projects", tags=[
 app.include_router(client_invoices.router, prefix="/api/client/invoices", tags=["client-invoices"])
 
 
-@app.get("/api/health")
+@app.get("/api/health", methods=["GET", "HEAD"], tags=["health"])
 async def health_check():
     return JSONResponse(content={"status": "healthy"}, status_code=200)

@@ -24,7 +24,7 @@ async def seed_admin(email: str, password: str, name: str = "Admin"):
 
 
 if __name__ == "__main__":
-    email = os.getenv("ADMIN_SEED_EMAIL", "admin@madphotography.com")
-    password = os.getenv("ADMIN_SEED_PASSWORD", "changeme123")
-    name = os.getenv("ADMIN_SEED_NAME", "MAD Admin")
+    email = "admin@yourwebsite.com" # Change this to your desired admin email before running
+    password = "PASSWORD" # Change this to a secure password before running
+    name = "MAD Admin"
     asyncio.run(seed_admin(email, password, name))
