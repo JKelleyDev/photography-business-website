@@ -282,8 +282,8 @@ The Vite dev server proxies `/api` requests to `localhost:8000`, so you don't ne
 
 ```bash
 # Uses env vars for credentials (defaults shown)
-ADMIN_SEED_EMAIL=admin@madphotography.com \
-ADMIN_SEED_PASSWORD=changeme123 \
+ADMIN_SEED_EMAIL=admin@yoursite.com \
+ADMIN_SEED_PASSWORD=PASSWORD \
 ADMIN_SEED_NAME="MAD Admin" \
 python scripts/seed_admin.py
 ```

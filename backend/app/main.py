@@ -61,6 +61,9 @@ app.include_router(client_projects.router, prefix="/api/client/projects", tags=[
 app.include_router(client_invoices.router, prefix="/api/client/invoices", tags=["client-invoices"])
 
 
-@app.get("/api/health", methods=["GET", "HEAD"], tags=["health"])
+@app.api_route("/api/health", methods=["GET", "HEAD"], tags=["health"])
 async def health_check():
-    return JSONResponse(content={"status": "healthy"}, status_code=200)
+    return JSONResponse(
+        content={"status": "healthy"}, 
+        status_code=200
+    )
