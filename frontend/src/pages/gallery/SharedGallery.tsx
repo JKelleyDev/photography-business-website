@@ -93,31 +93,61 @@ export default function SharedGallery() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
+  async function fetchWithProgress(
+    url: string,
+    signal: AbortSignal,
+    onBytes: (delta: number) => void,
+  ): Promise<ArrayBuffer> {
+    const res = await fetch(url, { signal });
+    if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+    const reader = res.body?.getReader();
+    if (!reader) return res.arrayBuffer();
+    const chunks: Uint8Array[] = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      onBytes(value.byteLength);
+    }
+    // Merge chunks into a single ArrayBuffer
+    const total = chunks.reduce((sum, c) => sum + c.byteLength, 0);
+    const merged = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return merged.buffer;
+  }
+
   async function downloadAndZip(files: DownloadFile[], zipName: string) {
     setDownloading(true);
     const totalBytes = files.reduce((sum, f) => sum + f.size_bytes, 0);
+    let bytesLoaded = 0;
+    let filesCompleted = 0;
     setProgress({ phase: 'downloading', filesCompleted: 0, filesTotal: files.length, bytesLoaded: 0, bytesTotal: totalBytes });
 
     const abort = new AbortController();
     abortRef.current = abort;
 
-    try {
-      // Download all files from S3 in parallel (limited concurrency)
-      const results: { filename: string; data: ArrayBuffer }[] = [];
-      let bytesLoaded = 0;
-      let filesCompleted = 0;
+    const updateProgress = () => {
+      setProgress({ phase: 'downloading', filesCompleted, filesTotal: files.length, bytesLoaded, bytesTotal: totalBytes });
+    };
 
-      // Process in batches of MAX_CONCURRENT
+    try {
+      const results: { filename: string; data: ArrayBuffer }[] = [];
+
+      // Process in batches of MAX_CONCURRENT with per-byte progress
       for (let i = 0; i < files.length; i += MAX_CONCURRENT) {
         const batch = files.slice(i, i + MAX_CONCURRENT);
         const batchResults = await Promise.all(
           batch.map(async (file) => {
-            const res = await fetch(file.url, { signal: abort.signal });
-            if (!res.ok) throw new Error(`Failed to download ${file.filename}`);
-            const data = await res.arrayBuffer();
-            bytesLoaded += data.byteLength;
+            const data = await fetchWithProgress(file.url, abort.signal, (delta) => {
+              bytesLoaded += delta;
+              updateProgress();
+            });
             filesCompleted++;
-            setProgress({ phase: 'downloading', filesCompleted, filesTotal: files.length, bytesLoaded, bytesTotal: totalBytes });
+            updateProgress();
             return { filename: file.filename, data };
           })
         );
