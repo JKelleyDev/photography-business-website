@@ -8,6 +8,7 @@ class CreateProjectRequest(BaseModel):
     client_email: str
     client_name: str = ""
     categories: list[str] = []
+    inquiry_id: str | None = None
 
 
 class UpdateProjectRequest(BaseModel):

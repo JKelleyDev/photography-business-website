@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import api from '../../api/client';
 import { Project, Media } from '../../types';
 import Button from '../../components/ui/Button';
@@ -93,8 +93,18 @@ export default function ProjectDetail() {
       }));
       payload.invoice_due_date = new Date(invoiceDueDate).toISOString();
     }
+    if (!createInvoice) {
+      const ok = confirm('No invoice will be created. Clients will see unwatermarked images and can download freely. Continue without an invoice?');
+      if (!ok) return;
+    }
     await api.post(`/admin/projects/${id}/deliver`, payload);
     setShowDeliver(false);
+    loadProject();
+  }
+
+  async function handleRescind() {
+    if (!confirm('This will deactivate the gallery link. Continue?')) return;
+    await api.put(`/admin/projects/${id}/rescind`);
     loadProject();
   }
 
@@ -130,6 +140,14 @@ export default function ProjectDetail() {
         <div className="flex gap-2">
           {project.status === 'active' && (
             <Button onClick={() => setShowDeliver(true)}>Deliver Project</Button>
+          )}
+          {project.status === 'delivered' && (
+            <Button variant="danger" onClick={handleRescind}>Rescind Delivery</Button>
+          )}
+          {project.status === 'delivered' && (
+            <Link to={`/admin/invoices/new?clientId=${project.client_id}&projectId=${id}`}>
+              <Button variant="ghost">Create Invoice</Button>
+            </Link>
           )}
           {project.status !== 'archived' && (
             <Button variant="danger" onClick={handleArchive}>Archive</Button>

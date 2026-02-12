@@ -32,6 +32,27 @@ async def list_inquiries(status: str | None = None, admin: dict = Depends(requir
     return {"inquiries": items}
 
 
+@router.get("/{inquiry_id}")
+async def get_inquiry(inquiry_id: str, admin: dict = Depends(require_admin)):
+    db = get_database()
+    inq = await db.inquiries.find_one({"_id": ObjectId(inquiry_id)})
+    if not inq:
+        raise HTTPException(status_code=404, detail="Inquiry not found")
+    return InquiryResponse(
+        id=str(inq["_id"]),
+        name=inq["name"],
+        email=inq["email"],
+        phone=inq.get("phone"),
+        package_id=inq.get("package_id"),
+        message=inq["message"],
+        event_date=inq.get("event_date"),
+        event_time=inq.get("event_time"),
+        event_duration=inq.get("event_duration"),
+        status=inq["status"],
+        created_at=inq["created_at"],
+    )
+
+
 @router.put("/{inquiry_id}")
 async def update_inquiry(inquiry_id: str, body: UpdateInquiryRequest, admin: dict = Depends(require_admin)):
     db = get_database()

@@ -1,12 +1,30 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api/client';
 import Button from '../../components/ui/Button';
 
 export default function ProjectNew() {
   const [form, setForm] = useState({ title: '', description: '', client_email: '', client_name: '', categories: '' });
+  const [inquiryId, setInquiryId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const inqId = searchParams.get('inquiryId');
+    if (inqId) {
+      setInquiryId(inqId);
+      api.get(`/admin/inquiries/${inqId}`).then(({ data }) => {
+        setForm({
+          title: `${data.name} - Photography Session`,
+          description: [data.message, data.event_date ? `Event date: ${data.event_date}` : '', data.event_time ? `Event time: ${data.event_time}` : ''].filter(Boolean).join('\n'),
+          client_email: data.email,
+          client_name: data.name,
+          categories: '',
+        });
+      }).catch(() => {});
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -15,6 +33,7 @@ export default function ProjectNew() {
       const { data } = await api.post('/admin/projects', {
         ...form,
         categories: form.categories.split(',').map((c) => c.trim()).filter(Boolean),
+        inquiry_id: inquiryId,
       });
       navigate(`/admin/projects/${data.id}`);
     } catch (err) {

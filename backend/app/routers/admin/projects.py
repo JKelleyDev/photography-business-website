@@ -38,11 +38,13 @@ def _project_response(p: dict) -> ProjectResponse:
 
 
 @router.get("")
-async def list_projects(status: str | None = None, admin: dict = Depends(require_admin)):
+async def list_projects(status: str | None = None, client_id: str | None = None, admin: dict = Depends(require_admin)):
     db = get_database()
     query = {}
     if status:
         query["status"] = status
+    if client_id:
+        query["client_id"] = client_id
     cursor = db.projects.find(query).sort("created_at", -1)
     items = []
     async for p in cursor:
@@ -76,6 +78,12 @@ async def create_project(body: CreateProjectRequest, admin: dict = Depends(requi
         categories=body.categories,
     )
     insert = await db.projects.insert_one(project)
+    # Auto-book inquiry if linked
+    if body.inquiry_id:
+        await db.inquiries.update_one(
+            {"_id": ObjectId(body.inquiry_id)},
+            {"$set": {"status": "booked"}},
+        )
     return {"id": str(insert.inserted_id), "client_id": client_id, "message": "Project created"}
 
 
@@ -152,6 +160,21 @@ async def deliver_project(project_id: str, body: DeliverProjectRequest, admin: d
     if client:
         send_gallery_link_email(client["email"], client.get("name", ""), token, project["title"])
     return {"share_link_token": token, "invoice_token": invoice_token, "message": "Project delivered"}
+
+
+@router.put("/{project_id}/rescind")
+async def rescind_delivery(project_id: str, admin: dict = Depends(require_admin)):
+    db = get_database()
+    project = await db.projects.find_one({"_id": ObjectId(project_id)})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project["status"] != "delivered":
+        raise HTTPException(status_code=400, detail="Only delivered projects can be rescinded")
+    await db.projects.update_one(
+        {"_id": ObjectId(project_id)},
+        {"$set": {"status": "active", "share_link_token": None, "share_link_expires_at": None, "updated_at": datetime.utcnow()}},
+    )
+    return {"message": "Delivery rescinded, project returned to active"}
 
 
 @router.put("/{project_id}/archive")

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../api/client';
 import { Inquiry, PricingPackage } from '../../types';
 import { formatDateTime } from '../../utils/dateHelpers';
@@ -114,7 +115,14 @@ export default function InquiryList() {
                       </Button>
                     ))}
                   </div>
-                  <p className="text-xs text-muted">{formatDateTime(inq.created_at)}</p>
+                  <div className="flex items-center gap-3">
+                    {inq.status === 'booked' && (
+                      <Link to={`/admin/projects/new?inquiryId=${inq.id}`}>
+                        <Button size="sm" variant="ghost">Create Project</Button>
+                      </Link>
+                    )}
+                    <p className="text-xs text-muted">{formatDateTime(inq.created_at)}</p>
+                  </div>
                 </div>
               </div>
             );

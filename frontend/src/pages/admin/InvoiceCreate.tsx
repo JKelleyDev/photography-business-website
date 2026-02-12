@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api/client';
-import { User } from '../../types';
+import { User, Project } from '../../types';
 import Button from '../../components/ui/Button';
 
 interface LineItem {
@@ -13,14 +13,43 @@ interface LineItem {
 export default function InvoiceCreate() {
   const [clients, setClients] = useState<User[]>([]);
   const [clientId, setClientId] = useState('');
+  const [projectId, setProjectId] = useState('');
+  const [projects, setProjects] = useState<Project[]>([]);
   const [dueDate, setDueDate] = useState('');
   const [lineItems, setLineItems] = useState<LineItem[]>([{ description: '', amount_dollars: '', quantity: 1 }]);
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    api.get('/admin/clients').then(({ data }) => setClients(data.clients));
+    api.get('/admin/clients').then(({ data }) => {
+      setClients(data.clients);
+      const paramClientId = searchParams.get('clientId');
+      const paramProjectId = searchParams.get('projectId');
+      if (paramClientId) setClientId(paramClientId);
+      if (paramProjectId) setProjectId(paramProjectId);
+    });
   }, []);
+
+  // Fetch projects when client changes
+  useEffect(() => {
+    if (!clientId) {
+      setProjects([]);
+      setProjectId('');
+      return;
+    }
+    api.get(`/admin/projects?client_id=${clientId}`).then(({ data }) => {
+      const eligible = data.projects.filter((p: Project) => p.status === 'active' || p.status === 'delivered');
+      setProjects(eligible);
+      // Keep projectId if it's still valid for this client
+      const paramProjectId = searchParams.get('projectId');
+      if (paramProjectId && eligible.some((p: Project) => p.id === paramProjectId)) {
+        setProjectId(paramProjectId);
+      } else if (!eligible.some((p: Project) => p.id === projectId)) {
+        setProjectId('');
+      }
+    });
+  }, [clientId]);
 
   function addLineItem() {
     setLineItems([...lineItems, { description: '', amount_dollars: '', quantity: 1 }]);
@@ -42,6 +71,7 @@ export default function InvoiceCreate() {
     try {
       await api.post('/admin/invoices', {
         client_id: clientId,
+        project_id: projectId || null,
         line_items: lineItems.map((li) => ({
           description: li.description,
           amount_cents: Math.round(parseFloat(li.amount_dollars || '0') * 100),
@@ -72,6 +102,17 @@ export default function InvoiceCreate() {
             ))}
           </select>
         </div>
+        {clientId && projects.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium mb-1">Project (optional)</label>
+            <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent">
+              <option value="">No project</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>{p.title} ({p.status})</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium mb-1">Due Date *</label>
           <input type="date" required value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent" />
