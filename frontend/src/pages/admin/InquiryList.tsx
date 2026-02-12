@@ -65,7 +65,7 @@ export default function InquiryList() {
                   </span>
                 </div>
 
-                {(inq.event_date || pkg) && (
+                {(inq.event_date || inq.event_time || inq.event_duration || pkg) && (
                   <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm mb-3">
                     {pkg && (
                       <div>
@@ -80,6 +80,18 @@ export default function InquiryList() {
                       <div>
                         <span className="text-muted">Event Date:</span>{' '}
                         <span className="font-medium">{formatDateTime(inq.event_date)}</span>
+                      </div>
+                    )}
+                    {inq.event_time && (
+                      <div>
+                        <span className="text-muted">Event Time:</span>{' '}
+                        <span className="font-medium">{inq.event_time}</span>
+                      </div>
+                    )}
+                    {inq.event_duration && (
+                      <div>
+                        <span className="text-muted">Duration:</span>{' '}
+                        <span className="font-medium">{inq.event_duration}</span>
                       </div>
                     )}
                   </div>

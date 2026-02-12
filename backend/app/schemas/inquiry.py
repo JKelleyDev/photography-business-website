@@ -9,6 +9,8 @@ class CreateInquiryRequest(BaseModel):
     package_id: str | None = None
     message: str
     event_date: datetime | None = None
+    event_time: str | None = None
+    event_duration: str | None = None
 
 
 class UpdateInquiryRequest(BaseModel):
@@ -23,5 +25,7 @@ class InquiryResponse(BaseModel):
     package_id: str | None
     message: str
     event_date: datetime | None
+    event_time: str | None
+    event_duration: str | None
     status: str
     created_at: datetime

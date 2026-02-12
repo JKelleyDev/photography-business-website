@@ -70,6 +70,8 @@ export interface Inquiry {
   package_id?: string;
   message: string;
   event_date?: string;
+  event_time?: string;
+  event_duration?: string;
   status: 'new' | 'contacted' | 'booked' | 'closed';
   created_at: string;
 }

@@ -24,6 +24,8 @@ async def list_inquiries(status: str | None = None, admin: dict = Depends(requir
             package_id=inq.get("package_id"),
             message=inq["message"],
             event_date=inq.get("event_date"),
+            event_time=inq.get("event_time"),
+            event_duration=inq.get("event_duration"),
             status=inq["status"],
             created_at=inq["created_at"],
         ))

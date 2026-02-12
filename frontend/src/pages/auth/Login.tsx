@@ -69,7 +69,9 @@ export default function Login() {
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
-          <div className="mt-4 text-center">
+          <div className="mt-4 text-center flex items-center justify-center gap-4">
+            <a href="/" className="text-sm text-muted hover:text-primary">Back to Home</a>
+            <span className="text-gray-300">|</span>
             <a href="/forgot-password" className="text-sm text-accent hover:underline">Forgot password?</a>
           </div>
         </div>

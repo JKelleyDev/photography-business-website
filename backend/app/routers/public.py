@@ -86,6 +86,8 @@ async def submit_inquiry(body: CreateInquiryRequest):
         phone=body.phone,
         package_id=body.package_id,
         event_date=body.event_date,
+        event_time=body.event_time,
+        event_duration=body.event_duration,
     )
     result = await db.inquiries.insert_one(inquiry)
     return {"id": str(result.inserted_id), "message": "Inquiry submitted successfully"}

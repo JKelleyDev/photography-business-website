@@ -36,7 +36,7 @@ async def login(body: LoginRequest, response: Response):
         value=refresh_token,
         httponly=True,
         secure=True,
-        samesite="strict",
+        samesite="none",
         max_age=7 * 24 * 60 * 60,
     )
     return TokenResponse(access_token=access_token)
@@ -61,7 +61,7 @@ async def refresh(response: Response, refresh_token: str = Cookie(None)):
         value=new_refresh,
         httponly=True,
         secure=True,
-        samesite="strict",
+        samesite="none",
         max_age=7 * 24 * 60 * 60,
     )
     return TokenResponse(access_token=access_token)

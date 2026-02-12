@@ -10,7 +10,7 @@ export default function Pricing() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '', message: '', event_date: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', phone: '', message: '', event_date: '', event_time: '', event_duration: '' });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -26,6 +26,8 @@ export default function Pricing() {
         ...formData,
         package_id: selectedPkg,
         event_date: formData.event_date || null,
+        event_time: formData.event_time || null,
+        event_duration: formData.event_duration || null,
       });
       setSubmitted(true);
     } catch (err) {
@@ -136,12 +138,33 @@ export default function Pricing() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
                 />
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Event Date</label>
+                  <input
+                    type="date"
+                    value={formData.event_date}
+                    onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Event Time</label>
+                  <input
+                    type="time"
+                    value={formData.event_time}
+                    onChange={(e) => setFormData({ ...formData, event_time: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                  />
+                </div>
+              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Event Date</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Event Duration</label>
                 <input
-                  type="date"
-                  value={formData.event_date}
-                  onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
+                  type="text"
+                  placeholder="2 hours"
+                  value={formData.event_duration}
+                  onChange={(e) => setFormData({ ...formData, event_duration: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
                 />
               </div>
