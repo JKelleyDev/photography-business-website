@@ -13,7 +13,7 @@ export default function ProjectDetail() {
   const [media, setMedia] = useState<Media[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [uploadProgress, setUploadProgress] = useState<Record<string, any>>({});
   const [showDeliver, setShowDeliver] = useState(false);
   const [deliverForm, setDeliverForm] = useState({ share_link_expires_at: '', project_expires_at: '' });
   const [createInvoice, setCreateInvoice] = useState(false);
@@ -33,26 +33,43 @@ export default function ProjectDetail() {
     setLoading(false);
   }
 
+  // Warn before leaving during upload
+  useEffect(() => {
+    if (!uploading) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [uploading]);
+
   async function handleUpload(files: FileList) {
+    const fileArray = Array.from(files);
+    const total = fileArray.length;
     setUploading(true);
-    const formData = new FormData();
-    Array.from(files).forEach((file) => formData.append('files', file));
-    try {
-      await api.post(`/admin/projects/${id}/media`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (e) => {
-          if (e.total) {
-            setUploadProgress({ overall: Math.round((e.loaded * 100) / e.total) });
-          }
-        },
-      });
-      loadProject();
-    } catch (err) {
-      console.error('Upload failed', err);
-    } finally {
-      setUploading(false);
-      setUploadProgress({});
+    setUploadProgress({ completed: 0, total, currentFile: '', currentPct: 0 });
+    let failed = 0;
+    for (let i = 0; i < total; i++) {
+      const file = fileArray[i];
+      const formData = new FormData();
+      formData.append('files', file);
+      setUploadProgress({ completed: i, total, currentFile: file.name, currentPct: 0 });
+      try {
+        await api.post(`/admin/projects/${id}/media`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: (e) => {
+            if (e.total) {
+              setUploadProgress({ completed: i, total, currentFile: file.name, currentPct: Math.round((e.loaded * 100) / e.total) });
+            }
+          },
+        });
+      } catch (err) {
+        console.error(`Upload failed for ${file.name}`, err);
+        failed++;
+      }
     }
+    setUploading(false);
+    setUploadProgress({});
+    loadProject();
+    if (failed > 0) alert(`${failed} of ${total} files failed to upload.`);
   }
 
   async function handleDeleteMedia(mediaId: string) {
@@ -149,10 +166,17 @@ export default function ProjectDetail() {
           >
             {uploading ? (
               <div>
-                <p className="text-sm text-muted mb-2">Uploading...</p>
-                <div className="w-48 mx-auto bg-gray-200 rounded-full h-2">
-                  <div className="bg-accent h-2 rounded-full transition-all" style={{ width: `${uploadProgress.overall || 0}%` }} />
+                <p className="text-sm font-medium text-primary mb-1">
+                  Uploading {(uploadProgress.completed || 0) + 1} of {uploadProgress.total || 0}
+                </p>
+                <p className="text-xs text-muted mb-2 truncate max-w-xs mx-auto">{uploadProgress.currentFile}</p>
+                <div className="w-64 mx-auto bg-gray-200 rounded-full h-2 mb-2">
+                  <div className="bg-accent h-2 rounded-full transition-all" style={{ width: `${uploadProgress.currentPct || 0}%` }} />
                 </div>
+                <p className="text-xs text-muted">
+                  {uploadProgress.currentPct === 100 ? 'Processing image...' : 'Uploading...'}
+                </p>
+                <p className="text-xs text-muted mt-2">Please don't leave this page</p>
               </div>
             ) : (
               <div>
