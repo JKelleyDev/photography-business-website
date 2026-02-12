@@ -3,8 +3,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response as FastAPIResponse
 from bson import ObjectId
 from app.database import get_database
-from app.services.s3 import generate_presigned_download_url, download_file_from_s3
-from app.services.image_processing import apply_watermark
+from app.services.s3 import generate_presigned_download_url
 from app.schemas.media import MediaResponse, SelectMediaRequest
 from app.utils.zip_stream import create_zip_from_s3_keys
 
@@ -57,11 +56,13 @@ async def list_gallery_media(token: str):
     cursor = db.media.find({"project_id": project_id}).sort("sort_order", 1)
     items = []
     async for m in cursor:
+        watermarked_key = m.get("watermarked_key")
         items.append(MediaResponse(
             id=str(m["_id"]),
             project_id=m["project_id"],
             compressed_url=generate_presigned_download_url(m["compressed_key"]),
             thumbnail_url=generate_presigned_download_url(m["thumbnail_key"]),
+            watermarked_url=generate_presigned_download_url(watermarked_key) if watermarked_key else None,
             filename=m["filename"],
             mime_type=m["mime_type"],
             width=m["width"],
@@ -73,22 +74,6 @@ async def list_gallery_media(token: str):
             is_selected=m["is_selected"],
         ))
     return {"media": items, "downloads_locked": downloads_locked}
-
-
-@router.get("/{token}/media/{media_id}/watermarked")
-async def get_watermarked_image(token: str, media_id: str):
-    project = await _get_valid_project(token)
-    project_id = str(project["_id"])
-    unpaid = await _get_unpaid_invoice(project_id)
-    if not unpaid:
-        raise HTTPException(status_code=403, detail="Watermark not applicable for paid projects")
-    db = get_database()
-    media = await db.media.find_one({"_id": ObjectId(media_id), "project_id": project_id})
-    if not media:
-        raise HTTPException(status_code=404, detail="Image not found")
-    image_bytes = download_file_from_s3(media["compressed_key"])
-    watermarked = apply_watermark(image_bytes)
-    return FastAPIResponse(content=watermarked, media_type="image/jpeg")
 
 
 @router.post("/{token}/select")

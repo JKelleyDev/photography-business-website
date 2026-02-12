@@ -8,6 +8,7 @@ class MediaResponse(BaseModel):
     original_url: str | None = None
     compressed_url: str | None = None
     thumbnail_url: str | None = None
+    watermarked_url: str | None = None
     filename: str
     mime_type: str
     width: int

@@ -152,10 +152,9 @@ export default function SharedGallery() {
     thumbnailUrl: m.thumbnail_url || '',
     alt: m.filename,
   }));
-  const apiBase = import.meta.env.VITE_API_URL || '/api';
   const lightboxImages = media.map((m) => ({
-    url: downloadsLocked
-      ? `${apiBase}/gallery/${token}/media/${m.id}/watermarked`
+    url: downloadsLocked && m.watermarked_url
+      ? m.watermarked_url
       : m.compressed_url || '',
     alt: m.filename,
   }));

@@ -95,10 +95,16 @@ def process_and_upload_image(
     thumbnail_key = f"projects/{project_id}/thumbnails/{file_id}.jpg"
     upload_file_to_s3(thumbnail_key, thumbnail_bytes, "image/jpeg")
 
+    # Watermarked version (compressed with watermark overlay)
+    watermarked_bytes = apply_watermark(compressed_bytes)
+    watermarked_key = f"projects/{project_id}/watermarked/{file_id}.jpg"
+    upload_file_to_s3(watermarked_key, watermarked_bytes, "image/jpeg")
+
     return {
         "original_key": original_key,
         "compressed_key": compressed_key,
         "thumbnail_key": thumbnail_key,
+        "watermarked_key": watermarked_key,
         "width": width,
         "height": height,
         "size_bytes": len(file_bytes),

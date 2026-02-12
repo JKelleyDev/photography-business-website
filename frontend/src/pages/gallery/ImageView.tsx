@@ -49,8 +49,8 @@ export default function ImageView() {
           </button>
         )}
         <img
-          src={downloadsLocked
-            ? `${import.meta.env.VITE_API_URL || '/api'}/gallery/${token}/media/${media.id}/watermarked`
+          src={downloadsLocked && media.watermarked_url
+            ? media.watermarked_url
             : media.compressed_url || ''}
           alt={media.filename}
           className="max-h-[85vh] max-w-[90vw] object-contain"

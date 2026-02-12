@@ -49,13 +49,6 @@ def upload_file_to_s3(key: str, file_bytes: bytes, content_type: str) -> None:
     )
 
 
-def download_file_from_s3(key: str) -> bytes:
-    settings = get_settings()
-    client = get_s3_client()
-    response = client.get_object(Bucket=settings.S3_BUCKET_NAME, Key=key)
-    return response["Body"].read()
-
-
 def delete_file_from_s3(key: str) -> None:
     settings = get_settings()
     client = get_s3_client()

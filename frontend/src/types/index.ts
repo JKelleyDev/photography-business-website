@@ -28,6 +28,7 @@ export interface Media {
   original_url?: string;
   compressed_url?: string;
   thumbnail_url?: string;
+  watermarked_url?: string;
   filename: string;
   mime_type: string;
   width: number;

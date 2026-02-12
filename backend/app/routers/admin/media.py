@@ -55,6 +55,7 @@ async def upload_media(
             original_key=result["original_key"],
             compressed_key=result["compressed_key"],
             thumbnail_key=result["thumbnail_key"],
+            watermarked_key=result["watermarked_key"],
             filename=file.filename,
             mime_type=file.content_type,
             width=result["width"],
@@ -77,6 +78,8 @@ async def delete_media(project_id: str, media_id: str, admin: dict = Depends(req
     delete_file_from_s3(m["original_key"])
     delete_file_from_s3(m["compressed_key"])
     delete_file_from_s3(m["thumbnail_key"])
+    if m.get("watermarked_key"):
+        delete_file_from_s3(m["watermarked_key"])
     await db.media.delete_one({"_id": ObjectId(media_id)})
     return {"message": "Deleted"}
 
