@@ -1,7 +1,62 @@
 import io
+import math
 import uuid
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from app.services.s3 import upload_file_to_s3
+
+
+WATERMARK_TEXT = "MAD Photos"
+WATERMARK_OPACITY = 102  # ~40% of 255
+WATERMARK_ANGLE = -30
+
+
+def apply_watermark(image_bytes: bytes) -> bytes:
+    """Apply a repeating diagonal watermark to an image and return JPEG bytes."""
+    base = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
+    w, h = base.size
+
+    # Create transparent overlay
+    overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+
+    font_size = max(w // 12, 24)
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
+    except (OSError, IOError):
+        font = ImageFont.load_default(font_size)
+
+    fill = (255, 255, 255, WATERMARK_OPACITY)
+
+    # Measure text size
+    bbox = draw.textbbox((0, 0), WATERMARK_TEXT, font=font)
+    tw = bbox[2] - bbox[0]
+    th = bbox[3] - bbox[1]
+
+    # Spacing between watermark repetitions
+    spacing_x = tw + max(tw, 200)
+    spacing_y = th + max(th * 3, 200)
+
+    # Draw on a larger canvas to account for rotation clipping
+    diag = int(math.sqrt(w * w + h * h))
+    txt_layer = Image.new("RGBA", (diag * 2, diag * 2), (0, 0, 0, 0))
+    txt_draw = ImageDraw.Draw(txt_layer)
+
+    for y in range(0, diag * 2, spacing_y):
+        for x in range(0, diag * 2, spacing_x):
+            txt_draw.text((x, y), WATERMARK_TEXT, font=font, fill=fill)
+
+    txt_layer = txt_layer.rotate(WATERMARK_ANGLE, resample=Image.BICUBIC, expand=False)
+
+    # Crop the center to match the original image size
+    cx, cy = txt_layer.size[0] // 2, txt_layer.size[1] // 2
+    crop_box = (cx - w // 2, cy - h // 2, cx - w // 2 + w, cy - h // 2 + h)
+    txt_layer = txt_layer.crop(crop_box)
+
+    result = Image.alpha_composite(base, txt_layer).convert("RGB")
+
+    buf = io.BytesIO()
+    result.save(buf, format="JPEG", quality=80, optimize=True)
+    return buf.getvalue()
 
 
 COMPRESSED_MAX_EDGE = 2048

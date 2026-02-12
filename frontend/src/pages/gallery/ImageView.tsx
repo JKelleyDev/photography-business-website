@@ -9,11 +9,13 @@ export default function ImageView() {
   const [media, setMedia] = useState<Media | null>(null);
   const [allMedia, setAllMedia] = useState<Media[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloadsLocked, setDownloadsLocked] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     api.get(`/gallery/${token}/media`).then(({ data }) => {
       setAllMedia(data.media);
+      setDownloadsLocked(data.downloads_locked ?? false);
       const found = data.media.find((m: Media) => m.id === mediaId);
       setMedia(found || null);
     }).finally(() => setLoading(false));
@@ -46,7 +48,13 @@ export default function ImageView() {
             </svg>
           </button>
         )}
-        <img src={media.compressed_url || ''} alt={media.filename} className="max-h-[85vh] max-w-[90vw] object-contain" />
+        <img
+          src={downloadsLocked
+            ? `${import.meta.env.VITE_API_URL || '/api'}/gallery/${token}/media/${media.id}/watermarked`
+            : media.compressed_url || ''}
+          alt={media.filename}
+          className="max-h-[85vh] max-w-[90vw] object-contain"
+        />
         {currentIndex < allMedia.length - 1 && (
           <button onClick={() => goTo(currentIndex + 1)} className="absolute right-4 text-white/70 hover:text-white">
             <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
