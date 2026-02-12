@@ -88,6 +88,45 @@ async def select_media(token: str, body: SelectMediaRequest):
     return {"message": "Selection updated"}
 
 
+@router.get("/{token}/media/{media_id}/download-url")
+async def get_single_download_url(token: str, media_id: str):
+    project = await _get_valid_project(token)
+    project_id = str(project["_id"])
+    if await _get_unpaid_invoice(project_id):
+        raise HTTPException(status_code=402, detail="Downloads are locked until the invoice is paid")
+    db = get_database()
+    m = await db.media.find_one({"_id": ObjectId(media_id), "project_id": project_id})
+    if not m:
+        raise HTTPException(status_code=404, detail="Media not found")
+    return {
+        "url": generate_presigned_download_url(m["original_key"], expires_in=600),
+        "filename": m["filename"],
+    }
+
+
+@router.get("/{token}/download-urls")
+async def get_download_urls(token: str, scope: str = "selected"):
+    project = await _get_valid_project(token)
+    project_id = str(project["_id"])
+    if await _get_unpaid_invoice(project_id):
+        raise HTTPException(status_code=402, detail="Downloads are locked until the invoice is paid")
+    db = get_database()
+    query: dict = {"project_id": project_id}
+    if scope == "selected":
+        query["is_selected"] = True
+    cursor = db.media.find(query).sort("sort_order", 1)
+    files = []
+    async for m in cursor:
+        files.append({
+            "url": generate_presigned_download_url(m["original_key"], expires_in=600),
+            "filename": m["filename"],
+            "size_bytes": m["size_bytes"],
+        })
+    if not files:
+        raise HTTPException(status_code=400, detail="No images to download")
+    return {"files": files}
+
+
 @router.get("/{token}/download")
 async def download_selected(token: str):
     project = await _get_valid_project(token)

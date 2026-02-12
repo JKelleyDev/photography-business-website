@@ -1,11 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import JSZip from 'jszip';
 import api from '../../api/client';
 import { Media } from '../../types';
 import ImageGrid from '../../components/ui/ImageGrid';
 import Lightbox from '../../components/ui/Lightbox';
 import Button from '../../components/ui/Button';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+
+interface DownloadFile {
+  url: string;
+  filename: string;
+  size_bytes: number;
+}
+
+interface DownloadProgress {
+  phase: 'downloading' | 'zipping' | 'idle';
+  filesCompleted: number;
+  filesTotal: number;
+  bytesLoaded: number;
+  bytesTotal: number;
+}
+
+const MAX_CONCURRENT = 4;
 
 export default function SharedGallery() {
   const { token } = useParams<{ token: string }>();
@@ -16,9 +33,10 @@ export default function SharedGallery() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState({ loaded: 0, total: 0 });
+  const [progress, setProgress] = useState<DownloadProgress>({ phase: 'idle', filesCompleted: 0, filesTotal: 0, bytesLoaded: 0, bytesTotal: 0 });
   const [downloadsLocked, setDownloadsLocked] = useState(false);
   const [invoiceToken, setInvoiceToken] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     loadGallery();
@@ -70,77 +88,105 @@ export default function SharedGallery() {
     ]);
   }
 
-  const apiBase = import.meta.env.VITE_API_URL || '/api';
-
   function formatBytes(bytes: number): string {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
-  async function streamDownload(url: string, filename: string, estimatedBytes: number, method: 'GET' | 'POST' = 'GET') {
+  async function downloadAndZip(files: DownloadFile[], zipName: string) {
     setDownloading(true);
-    setDownloadProgress({ loaded: 0, total: estimatedBytes });
+    const totalBytes = files.reduce((sum, f) => sum + f.size_bytes, 0);
+    setProgress({ phase: 'downloading', filesCompleted: 0, filesTotal: files.length, bytesLoaded: 0, bytesTotal: totalBytes });
+
+    const abort = new AbortController();
+    abortRef.current = abort;
+
     try {
-      const res = await fetch(`${apiBase}${url}`, { method });
-      if (res.status === 402) {
-        setDownloadsLocked(true);
-        return;
+      // Download all files from S3 in parallel (limited concurrency)
+      const results: { filename: string; data: ArrayBuffer }[] = [];
+      let bytesLoaded = 0;
+      let filesCompleted = 0;
+
+      // Process in batches of MAX_CONCURRENT
+      for (let i = 0; i < files.length; i += MAX_CONCURRENT) {
+        const batch = files.slice(i, i + MAX_CONCURRENT);
+        const batchResults = await Promise.all(
+          batch.map(async (file) => {
+            const res = await fetch(file.url, { signal: abort.signal });
+            if (!res.ok) throw new Error(`Failed to download ${file.filename}`);
+            const data = await res.arrayBuffer();
+            bytesLoaded += data.byteLength;
+            filesCompleted++;
+            setProgress({ phase: 'downloading', filesCompleted, filesTotal: files.length, bytesLoaded, bytesTotal: totalBytes });
+            return { filename: file.filename, data };
+          })
+        );
+        results.push(...batchResults);
       }
-      if (!res.ok) throw new Error(`Download failed: ${res.status}`);
-      // Use Content-Length if available, otherwise fall back to our estimate
-      const contentLength = res.headers.get('content-length');
-      const total = contentLength ? parseInt(contentLength, 10) : estimatedBytes;
-      const reader = res.body?.getReader();
-      if (!reader) {
-        // Fallback if ReadableStream not supported
-        const blob = await res.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(blobUrl);
-        return;
+
+      // Build zip client-side
+      setProgress((p) => ({ ...p, phase: 'zipping' }));
+      const zip = new JSZip();
+      for (const { filename, data } of results) {
+        zip.file(filename, data);
       }
-      const chunks: BlobPart[] = [];
-      let loaded = 0;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        loaded += value.length;
-        setDownloadProgress({ loaded, total });
-      }
-      const blob = new Blob(chunks);
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+
+      // Trigger download
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = blobUrl;
-      a.download = filename;
+      a.download = zipName;
       a.click();
       URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      console.error('Download failed', err);
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        console.error('Download failed', err);
+      }
     } finally {
       setDownloading(false);
-      setDownloadProgress({ loaded: 0, total: 0 });
+      setProgress({ phase: 'idle', filesCompleted: 0, filesTotal: 0, bytesLoaded: 0, bytesTotal: 0 });
+      abortRef.current = null;
     }
   }
 
-  async function handleDownloadSelected() {
-    await saveSelections();
-    const totalBytes = media.filter((m) => selectedIds.has(m.id)).reduce((sum, m) => sum + m.size_bytes, 0);
-    await streamDownload(`/gallery/${token}/download`, `${gallery?.title || 'photos'}_selected.zip`, totalBytes);
+  async function fetchUrlsAndDownload(scope: 'selected' | 'all', zipName: string) {
+    try {
+      if (scope === 'selected') await saveSelections();
+      const { data } = await api.get(`/gallery/${token}/download-urls?scope=${scope}`);
+      const files: DownloadFile[] = data.files;
+      if (files.length === 1) {
+        // Single file — download directly, no zip needed
+        const a = document.createElement('a');
+        a.href = files[0].url;
+        a.download = files[0].filename;
+        a.click();
+        return;
+      }
+      await downloadAndZip(files, zipName);
+    } catch (err: any) {
+      if (err.response?.status === 402) {
+        setDownloadsLocked(true);
+      } else {
+        console.error('Download failed', err);
+      }
+    }
   }
 
-  async function handleDownloadAll() {
-    const totalBytes = media.reduce((sum, m) => sum + m.size_bytes, 0);
-    await streamDownload(`/gallery/${token}/download-all`, `${gallery?.title || 'photos'}_all.zip`, totalBytes);
+  function handleDownloadSelected() {
+    fetchUrlsAndDownload('selected', `${gallery?.title || 'photos'}_selected.zip`);
   }
 
-  async function handleExportForPrinting() {
-    await saveSelections();
-    const totalBytes = media.filter((m) => selectedIds.has(m.id)).reduce((sum, m) => sum + m.size_bytes, 0);
-    await streamDownload(`/gallery/${token}/shutterfly-export`, `${gallery?.title || 'photos'}_for_printing.zip`, totalBytes, 'POST');
+  function handleDownloadAll() {
+    fetchUrlsAndDownload('all', `${gallery?.title || 'photos'}_all.zip`);
+  }
+
+  function handleExportForPrinting() {
+    fetchUrlsAndDownload('selected', `${gallery?.title || 'photos'}_for_printing.zip`);
+  }
+
+  function handleCancelDownload() {
+    abortRef.current?.abort();
   }
 
   if (loading) return <LoadingSpinner size="lg" />;
@@ -167,6 +213,8 @@ export default function SharedGallery() {
       : m.compressed_url || '',
     alt: m.filename,
   }));
+
+  const pct = progress.bytesTotal > 0 ? Math.min(Math.round((progress.bytesLoaded / progress.bytesTotal) * 100), 100) : 0;
 
   return (
     <div className="min-h-screen bg-white">
@@ -209,20 +257,29 @@ export default function SharedGallery() {
 
       {/* Bottom toolbar */}
       <div className="sticky bottom-0 bg-white border-t border-gray-200 shadow-lg px-4 py-3">
-        {downloading && downloadProgress.total > 0 && (
+        {downloading && progress.phase !== 'idle' && (
           <div className="max-w-7xl mx-auto mb-3">
             <div className="flex items-center justify-between text-xs text-muted mb-1">
-              <span>Preparing download...</span>
               <span>
-                {formatBytes(downloadProgress.loaded)} / {formatBytes(downloadProgress.total)}
-                {downloadProgress.total > 0 && ` (${Math.min(Math.round((downloadProgress.loaded / downloadProgress.total) * 100), 100)}%)`}
+                {progress.phase === 'downloading'
+                  ? `Downloading ${progress.filesCompleted} of ${progress.filesTotal} photos...`
+                  : 'Preparing zip file...'}
               </span>
+              <div className="flex items-center gap-3">
+                {progress.phase === 'downloading' && (
+                  <span>{formatBytes(progress.bytesLoaded)} / {formatBytes(progress.bytesTotal)} ({pct}%)</span>
+                )}
+                <button onClick={handleCancelDownload} className="text-red-500 hover:text-red-700 font-medium">
+                  Cancel
+                </button>
+              </div>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-accent h-2 rounded-full transition-all duration-300"
-                style={{ width: `${Math.min((downloadProgress.loaded / downloadProgress.total) * 100, 100)}%` }}
-              />
+              {progress.phase === 'downloading' ? (
+                <div className="bg-accent h-2 rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
+              ) : (
+                <div className="bg-accent h-2 rounded-full animate-pulse w-full" />
+              )}
             </div>
           </div>
         )}
@@ -266,6 +323,16 @@ export default function SharedGallery() {
           onClose={() => setLightboxIndex(null)}
           onNext={() => setLightboxIndex(Math.min(lightboxIndex + 1, lightboxImages.length - 1))}
           onPrev={() => setLightboxIndex(Math.max(lightboxIndex - 1, 0))}
+          onDownload={downloadsLocked ? undefined : (idx) => {
+            const m = media[idx];
+            if (!m) return;
+            api.get(`/gallery/${token}/media/${m.id}/download-url`).then(({ data }) => {
+              const a = document.createElement('a');
+              a.href = data.url;
+              a.download = data.filename;
+              a.click();
+            }).catch(console.error);
+          }}
         />
       )}
     </div>

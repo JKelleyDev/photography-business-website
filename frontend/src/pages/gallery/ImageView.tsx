@@ -32,13 +32,31 @@ export default function ImageView() {
     }
   }
 
+  function handleDownload() {
+    api.get(`/gallery/${token}/media/${mediaId}/download-url`).then(({ data }) => {
+      const a = document.createElement('a');
+      a.href = data.url;
+      a.download = data.filename;
+      a.click();
+    }).catch(console.error);
+  }
+
   return (
     <div className="min-h-screen bg-black flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 bg-black/80 text-white">
         <button onClick={() => navigate(`/gallery/${token}`)} className="text-sm text-gray-300 hover:text-white">
           Back to Gallery
         </button>
-        <span className="text-sm text-gray-400">{currentIndex + 1} / {allMedia.length}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-400">{currentIndex + 1} / {allMedia.length}</span>
+          {!downloadsLocked && (
+            <button onClick={handleDownload} className="text-gray-300 hover:text-white" title="Download original">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
       <div className="flex-1 flex items-center justify-center relative">
         {currentIndex > 0 && (
