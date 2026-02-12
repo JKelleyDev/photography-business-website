@@ -1,11 +1,11 @@
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import Response as FastAPIResponse
+from fastapi.responses import StreamingResponse
 from bson import ObjectId
 from app.database import get_database
 from app.services.s3 import generate_presigned_download_url
 from app.schemas.media import MediaResponse, SelectMediaRequest
-from app.utils.zip_stream import create_zip_from_s3_keys
+from app.utils.zip_stream import stream_zip_from_s3_keys
 
 router = APIRouter()
 
@@ -101,9 +101,8 @@ async def download_selected(token: str):
         keys_and_names.append((m["original_key"], m["filename"]))
     if not keys_and_names:
         raise HTTPException(status_code=400, detail="No images selected")
-    zip_bytes = create_zip_from_s3_keys(keys_and_names)
-    return FastAPIResponse(
-        content=zip_bytes,
+    return StreamingResponse(
+        stream_zip_from_s3_keys(keys_and_names),
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{project["title"]}_selected.zip"'},
     )
@@ -122,9 +121,8 @@ async def download_all(token: str):
         keys_and_names.append((m["original_key"], m["filename"]))
     if not keys_and_names:
         raise HTTPException(status_code=400, detail="No images in gallery")
-    zip_bytes = create_zip_from_s3_keys(keys_and_names)
-    return FastAPIResponse(
-        content=zip_bytes,
+    return StreamingResponse(
+        stream_zip_from_s3_keys(keys_and_names),
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{project["title"]}_all.zip"'},
     )
@@ -143,9 +141,8 @@ async def shutterfly_export(token: str):
         keys_and_names.append((m["original_key"], m["filename"]))
     if not keys_and_names:
         raise HTTPException(status_code=400, detail="No images selected for export")
-    zip_bytes = create_zip_from_s3_keys(keys_and_names)
-    return FastAPIResponse(
-        content=zip_bytes,
+    return StreamingResponse(
+        stream_zip_from_s3_keys(keys_and_names),
         media_type="application/zip",
         headers={
             "Content-Disposition": f'attachment; filename="{project["title"]}_for_printing.zip"',

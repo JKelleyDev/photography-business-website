@@ -16,6 +16,7 @@ export default function SharedGallery() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState({ loaded: 0, total: 0 });
   const [downloadsLocked, setDownloadsLocked] = useState(false);
   const [invoiceToken, setInvoiceToken] = useState<string | null>(null);
 
@@ -69,69 +70,77 @@ export default function SharedGallery() {
     ]);
   }
 
-  async function handleDownloadSelected() {
-    await saveSelections();
+  const apiBase = import.meta.env.VITE_API_URL || '/api';
+
+  function formatBytes(bytes: number): string {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  async function streamDownload(url: string, filename: string, estimatedBytes: number, method: 'GET' | 'POST' = 'GET') {
     setDownloading(true);
+    setDownloadProgress({ loaded: 0, total: estimatedBytes });
     try {
-      const response = await api.get(`/gallery/${token}/download`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${gallery?.title || 'photos'}_selected.zip`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch (err: any) {
-      if (err.response?.status === 402) {
+      const res = await fetch(`${apiBase}${url}`, { method });
+      if (res.status === 402) {
         setDownloadsLocked(true);
-      } else {
-        console.error('Download failed', err);
+        return;
       }
+      if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+      // Use Content-Length if available, otherwise fall back to our estimate
+      const contentLength = res.headers.get('content-length');
+      const total = contentLength ? parseInt(contentLength, 10) : estimatedBytes;
+      const reader = res.body?.getReader();
+      if (!reader) {
+        // Fallback if ReadableStream not supported
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(blobUrl);
+        return;
+      }
+      const chunks: BlobPart[] = [];
+      let loaded = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        loaded += value.length;
+        setDownloadProgress({ loaded, total });
+      }
+      const blob = new Blob(chunks);
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Download failed', err);
     } finally {
       setDownloading(false);
+      setDownloadProgress({ loaded: 0, total: 0 });
     }
   }
 
+  async function handleDownloadSelected() {
+    await saveSelections();
+    const totalBytes = media.filter((m) => selectedIds.has(m.id)).reduce((sum, m) => sum + m.size_bytes, 0);
+    await streamDownload(`/gallery/${token}/download`, `${gallery?.title || 'photos'}_selected.zip`, totalBytes);
+  }
+
   async function handleDownloadAll() {
-    setDownloading(true);
-    try {
-      const response = await api.get(`/gallery/${token}/download-all`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${gallery?.title || 'photos'}_all.zip`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch (err: any) {
-      if (err.response?.status === 402) {
-        setDownloadsLocked(true);
-      } else {
-        console.error('Download failed', err);
-      }
-    } finally {
-      setDownloading(false);
-    }
+    const totalBytes = media.reduce((sum, m) => sum + m.size_bytes, 0);
+    await streamDownload(`/gallery/${token}/download-all`, `${gallery?.title || 'photos'}_all.zip`, totalBytes);
   }
 
   async function handleExportForPrinting() {
     await saveSelections();
-    setDownloading(true);
-    try {
-      const response = await api.post(`/gallery/${token}/shutterfly-export`, {}, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${gallery?.title || 'photos'}_for_printing.zip`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch (err: any) {
-      if (err.response?.status === 402) {
-        setDownloadsLocked(true);
-      } else {
-        console.error('Export failed', err);
-      }
-    } finally {
-      setDownloading(false);
-    }
+    const totalBytes = media.filter((m) => selectedIds.has(m.id)).reduce((sum, m) => sum + m.size_bytes, 0);
+    await streamDownload(`/gallery/${token}/shutterfly-export`, `${gallery?.title || 'photos'}_for_printing.zip`, totalBytes, 'POST');
   }
 
   if (loading) return <LoadingSpinner size="lg" />;
@@ -200,6 +209,23 @@ export default function SharedGallery() {
 
       {/* Bottom toolbar */}
       <div className="sticky bottom-0 bg-white border-t border-gray-200 shadow-lg px-4 py-3">
+        {downloading && downloadProgress.total > 0 && (
+          <div className="max-w-7xl mx-auto mb-3">
+            <div className="flex items-center justify-between text-xs text-muted mb-1">
+              <span>Preparing download...</span>
+              <span>
+                {formatBytes(downloadProgress.loaded)} / {formatBytes(downloadProgress.total)}
+                {downloadProgress.total > 0 && ` (${Math.min(Math.round((downloadProgress.loaded / downloadProgress.total) * 100), 100)}%)`}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-accent h-2 rounded-full transition-all duration-300"
+                style={{ width: `${Math.min((downloadProgress.loaded / downloadProgress.total) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <span className="text-sm text-muted">
             {selectedIds.size} of {media.length} selected
