@@ -419,9 +419,9 @@ Edit business contact information, social media links, payment method settings (
 2. Drag and drop images onto the upload zone (or click to browse)
 3. Supported formats: JPEG, PNG, TIFF
 4. Images are automatically compressed and thumbnailed
+   
+<img width="1180" height="792" alt="Screenshot 2026-02-11 at 6 12 06 PM" src="https://github.com/user-attachments/assets/9b3669e0-aabe-455e-a4b4-49040c7d374f" />
 
-> ![Project detail with media screenshot]
-> *`<!-- INSERT SCREENSHOT: Project detail page with uploaded photos -->`*
 
 #### Delivering a Project
 
@@ -434,18 +434,14 @@ Edit business contact information, social media links, payment method settings (
    - Gallery downloads will be locked until the invoice is marked as paid
 4. Click **Deliver & Notify Client** — the client receives an email with their gallery link
 
-> ![Deliver modal screenshot]
-> *`<!-- INSERT SCREENSHOT: Deliver project modal with invoice option -->`*
+<img width="530" height="728" alt="Screenshot 2026-02-11 at 6 14 06 PM" src="https://github.com/user-attachments/assets/a097ce73-0d29-4039-a1a7-e111c3307eae" />
 
-> ![Deliver modal with invoice screenshot]
-> *`<!-- INSERT SCREENSHOT: Deliver modal with invoice fields expanded -->`*
 
 #### Gallery Link
 
 After delivery, the gallery link is displayed on the project detail page. Copy and share it with the client.
 
-> ![Gallery link screenshot]
-> *`<!-- INSERT SCREENSHOT: Gallery link shown on project detail page -->`*
+<img width="1166" height="213" alt="Screenshot 2026-02-11 at 6 14 17 PM" src="https://github.com/user-attachments/assets/ff5f68e1-a997-4600-b51c-cef563da02e5" />
 
 ---
 
