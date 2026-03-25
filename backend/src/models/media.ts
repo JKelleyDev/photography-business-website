@@ -1,0 +1,31 @@
+export function newMedia(
+  projectId: string,
+  originalKey: string,
+  compressedKey: string,
+  thumbnailKey: string,
+  watermarkedKey: string,
+  filename: string,
+  mimeType: string,
+  width: number,
+  height: number,
+  sizeBytes: number,
+  compressedSizeBytes: number,
+  sortOrder = 0,
+) {
+  return {
+    project_id: projectId,
+    original_key: originalKey,
+    compressed_key: compressedKey,
+    thumbnail_key: thumbnailKey,
+    watermarked_key: watermarkedKey,
+    filename,
+    mime_type: mimeType,
+    width,
+    height,
+    size_bytes: sizeBytes,
+    compressed_size_bytes: compressedSizeBytes,
+    sort_order: sortOrder,
+    uploaded_at: new Date(),
+    is_selected: false,
+  };
+}

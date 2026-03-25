@@ -768,9 +768,348 @@ Admin work (uploading media, managing projects, creating invoices) will primaril
 ## Open Decisions & Notes
 
 1. **Shutterfly integration**: Starting with Option B (zip + redirect). Revisit if/when Shutterfly developer API access is obtained.
-2. **Background task runner**: For the MVP, use FastAPI's `BackgroundTasks` for image processing. If queue reliability becomes an issue, migrate to Celery + Redis.
-3. **RAW file support**: Pillow does not natively handle all RAW formats. If RAW support is needed, consider `rawpy` or processing RAW files via a separate pipeline. Clarify with client which camera formats they shoot in.
+2. **Background task runner**: Node.js processes image uploads synchronously within the request handler (sharp is fast). For large batches, Vercel's 300s function timeout should be sufficient. If it becomes an issue, consider offloading to an AWS Lambda trigger via S3 event.
+3. **RAW file support**: `sharp` (via libvips) supports JPEG, PNG, WebP, TIFF, HEIC. For RAW formats (CR2, NEF, ARW), a pre-processing step would be needed. Clarify with client which camera formats they shoot in.
 4. **Video support**: The current spec covers photo media only. If video is needed, the compression pipeline and storage strategy will need separate handling.
 5. **CDN**: For production, consider putting CloudFront in front of S3 for faster media delivery. Not required for MVP.
 6. **Heavy background jobs**: Vercel serverless has execution time limits. For large batch image processing or zip generation of 100+ images, may need an external worker service (AWS Lambda via SQS, or a small always-on service on Railway/Render). Evaluate once upload volumes are understood.
 7. **Vercel plan tier**: Pro plan recommended for 50MB request body limit (even though we use presigned S3 uploads), 300s function timeout, and team collaboration features. Evaluate if Hobby tier suffices for launch.
+
+---
+
+## Node.js Backend Migration Plan
+
+### Motivation
+
+The Python/FastAPI backend, while capable, requires a Python runtime that adds deployment complexity and a separate service tier. Migrating to Node.js/TypeScript aligns the entire stack to a single language, simplifies Vercel serverless deployment (Node.js is Vercel's first-class runtime), eliminates the need for Docker/uvicorn in production, and allows sharing TypeScript types between frontend and backend in the future.
+
+**What stays the same:**
+- React/Vite/TypeScript frontend (zero changes to UI or logic)
+- MongoDB database and all existing data
+- AWS S3 bucket and media keys
+- Stripe integration
+- SendGrid email integration
+- All API route contracts (same URLs, same request/response shapes)
+
+---
+
+### New Backend Tech Stack
+
+| Python (current) | Node.js (new) | Purpose |
+|-----------------|---------------|---------|
+| FastAPI | Express.js + TypeScript | HTTP framework |
+| Motor / PyMongo | mongodb (official Node driver) | MongoDB async driver |
+| Pydantic | zod | Request validation & schema |
+| python-jose | jsonwebtoken | JWT creation & verification |
+| bcrypt | bcryptjs | Password hashing (pure JS, serverless-safe) |
+| boto3 | @aws-sdk/client-s3 + @aws-sdk/s3-request-presigner | AWS S3 operations |
+| Pillow | sharp | Image compression & thumbnail generation |
+| stripe | stripe (Node SDK) | Stripe Invoicing API |
+| sendgrid | @sendgrid/mail | Transactional emails |
+| python-multipart | multer | Multipart file upload handling |
+| archival / zipfile | archiver | Streaming zip creation |
+| secrets.token_urlsafe | crypto.randomBytes | Secure random token generation |
+
+---
+
+### New Backend Directory Structure
+
+```
+backend/
+├── package.json
+├── tsconfig.json
+├── .env.example
+├── api/
+│   └── index.ts               # Vercel catch-all serverless entry point
+└── src/
+    ├── app.ts                  # Express app setup (no listen — for serverless)
+    ├── server.ts               # Local dev server (calls app.listen)
+    ├── config.ts               # Typed env config (process.env with validation)
+    ├── database.ts             # MongoDB connection singleton (cached for serverless)
+    ├── middleware/
+    │   ├── auth.ts             # JWT verification, requireAdmin, requireClient
+    │   └── errorHandler.ts     # Global Express error handler
+    ├── models/
+    │   ├── user.ts             # TypeScript interfaces + newUser() factory
+    │   ├── project.ts
+    │   ├── media.ts
+    │   ├── portfolio.ts
+    │   ├── pricing.ts
+    │   ├── inquiry.ts
+    │   ├── review.ts
+    │   ├── invoice.ts
+    │   └── settings.ts
+    ├── routes/
+    │   ├── auth.ts             # POST /login, /refresh, /logout, /set-password, etc.
+    │   ├── public.ts           # GET /portfolio, /pricing, /reviews; POST /inquiries
+    │   ├── gallery.ts          # Token-based gallery routes
+    │   ├── admin/
+    │   │   ├── portfolio.ts
+    │   │   ├── pricing.ts
+    │   │   ├── inquiries.ts
+    │   │   ├── reviews.ts
+    │   │   ├── projects.ts
+    │   │   ├── media.ts
+    │   │   ├── clients.ts
+    │   │   ├── invoices.ts
+    │   │   ├── settings.ts
+    │   │   └── dashboard.ts
+    │   └── client/
+    │       ├── projects.ts
+    │       └── invoices.ts
+    ├── services/
+    │   ├── auth.ts             # hashPassword, verifyPassword, createToken, decodeToken
+    │   ├── s3.ts               # getPresignedUpload, getPresignedDownload, deleteFile
+    │   ├── imageProcessing.ts  # processAndUploadImage (sharp: compress + thumbnail + watermark)
+    │   ├── email.ts            # sendInviteEmail, sendGalleryLinkEmail, sendPasswordReset
+    │   └── stripe.ts           # createCustomer, createInvoice, sendInvoice, getInvoice
+    └── utils/
+        ├── tokens.ts           # generateShareToken (crypto.randomBytes)
+        └── zipStream.ts        # streamZipFromS3Keys (archiver + S3 GetObject streams)
+```
+
+---
+
+### Vercel Deployment Strategy
+
+The backend is deployed as a single Vercel serverless function using a catch-all route:
+
+**`backend/api/index.ts`** (the Vercel entry point):
+```typescript
+import app from '../src/app';
+export default app;
+```
+
+**`vercel.json`** in the repo root:
+```json
+{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/backend/api/index" }
+  ]
+}
+```
+
+This routes all `/api/*` requests to the Express app running as a serverless function. The frontend (Vite) is deployed as a separate Vercel project or from the `/frontend` directory with its own build config.
+
+**MongoDB connection caching** is critical for serverless — the connection is initialized once per cold start and reused across invocations within the same instance:
+```typescript
+let cachedClient: MongoClient | null = null;
+export async function getDb() {
+  if (!cachedClient) cachedClient = await MongoClient.connect(config.MONGO_URI);
+  return cachedClient.db();
+}
+```
+
+---
+
+### Migration Phases
+
+#### Phase 1 — Backend Scaffold
+1. Create `backend/package.json` with all Node.js dependencies
+2. Create `backend/tsconfig.json` (ES2022 target, Node moduleResolution)
+3. Create `backend/src/config.ts` — typed env vars with validation
+4. Create `backend/src/database.ts` — MongoDB connection with serverless-safe caching
+5. Create `backend/src/app.ts` — Express app with CORS, cookie-parser, JSON body parser, route mounting
+6. Create `backend/src/server.ts` — local dev entry point (`app.listen`)
+7. Create `backend/api/index.ts` — Vercel serverless entry point
+8. Create `vercel.json` — routing config at repo root
+9. Add `dev` and `build` scripts; confirm local dev server starts
+
+#### Phase 2 — Models & Auth
+10. Port all 9 model factory functions to TypeScript interfaces + factory functions
+11. Implement `services/auth.ts` — bcryptjs hash/verify, JWT sign/verify with access + refresh tokens, invite token, password reset token
+12. Implement `middleware/auth.ts` — Express middleware: `requireAuth`, `requireAdmin`, `requireClient`, attach user to `req.user`
+13. Port `routes/auth.ts` — all 6 auth endpoints (login, refresh, logout, set-password, forgot-password, reset-password)
+
+#### Phase 3 — Core Services
+14. Implement `services/s3.ts` — presigned upload URLs, presigned download URLs, upload buffer, delete file, delete by prefix using `@aws-sdk/client-s3`
+15. Implement `services/imageProcessing.ts` — using `sharp`:
+    - Resize to 2048px longest edge, JPEG quality 82 (compressed)
+    - Resize to 400px longest edge, JPEG quality 70 (thumbnail)
+    - Diagonal repeating watermark using SVG overlay composite (watermarked)
+    - Upload all three variants to S3
+16. Implement `services/email.ts` — SendGrid with same email templates (invite, gallery link, password reset), fallback console stub
+17. Implement `services/stripe.ts` — createCustomer, createInvoice (with line items), sendInvoice, getInvoice using Stripe Node SDK
+18. Implement `utils/tokens.ts` — `generateShareToken()` using `crypto.randomBytes(32).toString('base64url')`
+19. Implement `utils/zipStream.ts` — streaming zip using `archiver` pulling S3 objects via GetObjectCommand stream
+
+#### Phase 4 — Public Routes
+20. Port `routes/public.ts`:
+    - `GET /api/portfolio` — paginated, filterable by category
+    - `GET /api/portfolio/:id`
+    - `GET /api/pricing`
+    - `POST /api/inquiries`
+    - `GET /api/reviews` (approved only, paginated)
+    - `POST /api/reviews`
+    - `GET /api/settings/:key`
+
+#### Phase 5 — Gallery Routes
+21. Port `routes/gallery.ts`:
+    - `GET /api/gallery/:token` — validate token, return project metadata
+    - `GET /api/gallery/:token/media` — list media with watermarked presigned URLs
+    - `POST /api/gallery/:token/select` — toggle image selection
+    - `GET /api/gallery/:token/download-urls` — presigned URLs for selected originals
+    - `GET /api/gallery/:token/download` — streaming zip of selected originals
+    - `GET /api/gallery/:token/download-all` — streaming zip of all originals
+    - `GET /api/gallery/:token/media/:mediaId/download-url` — single image presigned URL
+
+#### Phase 6 — Admin Routes
+22. Port `routes/admin/portfolio.ts` — CRUD with S3, reorder
+23. Port `routes/admin/pricing.ts` — CRUD
+24. Port `routes/admin/inquiries.ts` — list all, update status
+25. Port `routes/admin/reviews.ts` — list all, approve/reject, delete
+26. Port `routes/admin/projects.ts` — list, create (with client auto-creation + invite email), get, update, delete (S3 cleanup), deliver (share token + email), archive
+27. Port `routes/admin/media.ts` — list media, upload (presigned URL flow + process), delete, reorder
+28. Port `routes/admin/clients.ts` — list, create (send invite), update
+29. Port `routes/admin/invoices.ts` — list, create (Stripe sync), send, get status
+30. Port `routes/admin/settings.ts` — get all, update by key
+31. Port `routes/admin/dashboard.ts` — summary stats
+
+#### Phase 7 — Client Routes
+32. Port `routes/client/projects.ts` — list own projects
+33. Port `routes/client/invoices.ts` — list own invoices, Stripe payment redirect
+
+#### Phase 8 — Middleware & Error Handling
+34. Implement `middleware/errorHandler.ts` — centralized Express error handler that formats errors consistently
+35. Add request validation with `zod` on all POST/PUT routes
+36. Add rate limiting with `express-rate-limit` on public endpoints (inquiries, reviews, auth)
+
+#### Phase 9 — Vercel Config & Scripts
+37. Create `vercel.json` at repo root with rewrite rules
+38. Update `frontend/vite.config.ts` proxy target to point to new Node backend port (if changed)
+39. Update `frontend/.env.example` if API URL format changed
+40. Create `scripts/seed_admin.ts` — TypeScript port of seed_admin.py CLI script
+
+#### Phase 10 — Cleanup
+41. Remove `backend/app/` (Python source)
+42. Remove `backend/requirements.txt`, `backend/pyproject.toml`, `backend/Dockerfile`
+43. Remove `docker-compose.yml` (or replace with Node.js dev compose if desired)
+44. Update `README.md` (if it exists) to reflect new stack
+45. Final end-to-end test: auth, media upload, gallery access, Stripe invoice, download
+
+---
+
+### Key Implementation Notes
+
+**Sharp watermark** (replaces Pillow diagonal text):
+- Use SVG with `<text>` elements at multiple positions to simulate diagonal tiling
+- Composite the SVG onto the compressed image using `sharp().composite()`
+
+**Streaming zip** (replaces Python zipfile):
+- Use `archiver` library with `archiver('zip', { zlib: { level: 0 } })` (store, no compression, for speed)
+- Pipe `archiver` output to Express `res` directly for streaming
+- Fetch S3 originals via `GetObjectCommand`, get the `Body` stream, append each to archiver
+
+**MongoDB in serverless**:
+- Cache `MongoClient` instance in module scope — persists across warm invocations
+- Use `maxPoolSize: 5` to prevent connection exhaustion across concurrent serverless instances
+- Create indexes on first connection (email, share_link_token, project_id, etc.)
+
+**Image processing on Vercel**:
+- `sharp` works on Vercel Node.js functions (it ships prebuilt binaries for Linux x64)
+- Processing happens synchronously within the request handler (acceptable for single-image uploads)
+- For batch uploads, process sequentially or consider offloading to a background worker if timeouts occur
+
+**bcryptjs vs bcrypt**:
+- Use `bcryptjs` (pure JavaScript, no native compilation) — avoids platform/architecture issues in serverless
+- Salt rounds: 12 (same as current Python implementation)
+
+**Cookie handling**:
+- Use `cookie-parser` middleware
+- Refresh tokens in httpOnly, secure, sameSite=strict cookies (same as current)
+- Access tokens returned in response body (same as current)
+
+---
+
+### Dependency List (backend/package.json)
+
+```json
+{
+  "dependencies": {
+    "express": "^4.21.0",
+    "cors": "^2.8.5",
+    "cookie-parser": "^1.4.7",
+    "express-rate-limit": "^7.4.0",
+    "mongodb": "^6.11.0",
+    "zod": "^3.23.0",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "@aws-sdk/client-s3": "^3.700.0",
+    "@aws-sdk/s3-request-presigner": "^3.700.0",
+    "sharp": "^0.33.5",
+    "archiver": "^7.0.1",
+    "stripe": "^17.0.0",
+    "@sendgrid/mail": "^8.1.3",
+    "multer": "^1.4.5-lts.1",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/express": "^5.0.0",
+    "@types/cors": "^2.8.17",
+    "@types/cookie-parser": "^1.4.7",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/archiver": "^6.0.2",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "nodemon": "^3.1.0"
+  }
+}
+```
+
+---
+
+## Migration Status — Node.js Backend
+
+**Completed (2026-03-25)**
+
+The Python/FastAPI backend has been fully replaced with a Node.js/TypeScript/Express backend.
+
+### What Was Done
+- ✅ Created `backend/package.json` with all Node.js dependencies
+- ✅ Created `backend/tsconfig.json` (CommonJS target, ES2022)
+- ✅ `src/config.ts` — typed env config with dotenv
+- ✅ `src/database.ts` — MongoDB connection with serverless caching + 5s timeout + index creation
+- ✅ `src/app.ts` — Express app with CORS, cookie-parser, rate limiting, all routers mounted, `express-async-errors` for safe async error handling
+- ✅ `src/server.ts` — local dev entry (non-blocking startup, lazy DB connect)
+- ✅ `api/index.ts` — Vercel serverless entry point
+- ✅ `vercel.json` — root-level routing: `/api/*` → Node serverless, `/*` → frontend static
+- ✅ All 9 model factory functions ported to TypeScript
+- ✅ All 5 services ported: auth (bcryptjs + jsonwebtoken), s3 (AWS SDK v3), imageProcessing (sharp + SVG watermark), email (SendGrid), stripe
+- ✅ All utils ported: tokens (crypto.randomBytes), zipStream (archiver streaming)
+- ✅ Auth middleware: `requireAuth`, `requireAdmin`, `requireClient`
+- ✅ Global error handler with 503 for MongoDB unavailable, 500 for unexpected errors
+- ✅ All 13 route files ported (auth, public, gallery, 10 admin, 2 client)
+- ✅ `scripts/seed_admin.ts` ported from Python
+- ✅ Python backend removed (`backend/app/`, `requirements.txt`, `pyproject.toml`, `Dockerfile`)
+- ✅ TypeScript compilation: **0 errors**
+- ✅ Sandbox smoke tests passed:
+  - `GET /api/health` → `{"status":"healthy"}`
+  - `GET /api/admin/dashboard` (no token) → `{"detail":"Missing token"}` (401)
+  - `POST /api/auth/login` (no DB) → `{"detail":"Database unavailable"}` (503)
+  - `GET /api/admin/dashboard` (bad token) → `{"detail":"Invalid token"}` (401)
+  - `GET /api/pricing` (no DB) → `{"detail":"Database unavailable"}` (503)
+  - Server **stays alive** after MongoDB errors (no more crash-on-DB-failure)
+- ✅ README fully updated to reflect Node.js stack
+
+### Remaining Tasks / Known Issues
+
+1. **`@types/express` version in CLAUDE.md plan** — The plan doc lists `"@types/express": "^5.0.0"` but actual code uses `^4.17.21` (Express v4 types). The plan doc is cosmetic-only; actual code is correct.
+
+2. **End-to-end test with real MongoDB + S3** — Sandbox tests confirmed server startup, auth middleware, and error handling. Full integration tests (image upload, gallery delivery, zip download, email) require a real MongoDB connection and AWS S3 credentials. Recommended: deploy to Vercel preview and test with a staging environment.
+
+3. **`docker-compose.yml` is stale** — The existing `docker-compose.yml` still references the Python backend (uvicorn). Update it to run MongoDB only (for local dev) or replace with a simple `docker run mongo:7` instruction in the README. Low priority.
+
+4. **Frontend build verification** — The frontend was not changed, but it should be rebuilt and tested end-to-end against the new Node.js backend to confirm all API responses parse correctly (especially date formats — Python returned ISO strings, Node.js returns JS Date objects serialized to ISO strings, which should be compatible).
+
+5. **Vercel deployment test** — The `vercel.json` routing has not been tested in a live Vercel deployment. Verify that:
+   - `/api/*` routes correctly to the Node.js function
+   - `/` and `/*` serve the frontend SPA correctly
+   - Environment variables are set in Vercel project settings
+   - `sharp` native binaries work in Vercel's Node.js runtime (they should — Vercel uses Amazon Linux x64)
+
+6. **Rate limiter in serverless** — `express-rate-limit` uses in-memory storage by default. In serverless, each cold start gets its own memory, so rate limits are per-instance, not global. For production, configure a Redis store (e.g., `rate-limit-redis`) if global rate limiting is required.
+
+7. **Image upload size limit** — `multer` is set to 50MB per file. Vercel has a 4.5MB body limit on the Hobby plan and 50MB on Pro. For uploads >4.5MB on Hobby, switch to presigned S3 upload URLs (frontend uploads directly to S3, then POSTs the S3 key to the backend for processing).
