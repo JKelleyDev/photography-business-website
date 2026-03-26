@@ -1,11 +1,12 @@
 import { Router, Response } from 'express';
 import { ObjectId } from 'mongodb';
 import multer from 'multer';
+import crypto from 'crypto';
 import { getDb } from '../../database';
 import { requireAdmin, AuthRequest } from '../../middleware/auth';
 import { newMedia } from '../../models/media';
-import { processAndUploadImage } from '../../services/imageProcessing';
-import { generatePresignedDownloadUrl, deleteFileFromS3 } from '../../services/s3';
+import { processAndUploadImage, processUploadedProjectImage } from '../../services/imageProcessing';
+import { generatePresignedDownloadUrl, generatePresignedUploadUrl, deleteFileFromS3 } from '../../services/s3';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -59,6 +60,41 @@ router.post('/:projectId/media', requireAdmin, upload.array('files'), async (req
     }
   }
   res.status(201).json({ media_ids: uploadedIds, skipped, message: `${uploadedIds.length} file(s) uploaded${skipped.length ? `, ${skipped.length} skipped (unsupported format)` : ''}` });
+});
+
+router.post('/:projectId/media/presign', requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { filename, mime_type } = req.body;
+  if (!filename || !mime_type) { res.status(400).json({ detail: 'filename and mime_type required' }); return; }
+  const lowerName = (filename as string).toLowerCase();
+  if (mime_type === 'image/heic' || mime_type === 'image/heif' || lowerName.endsWith('.heic') || lowerName.endsWith('.heif')) {
+    res.status(422).json({ detail: 'HEIC/HEIF format is not supported.' }); return;
+  }
+  const db = await getDb();
+  const project = await db.collection('projects').findOne({ _id: new ObjectId(req.params.projectId) });
+  if (!project) { res.status(404).json({ detail: 'Project not found' }); return; }
+  const fileId = crypto.randomBytes(16).toString('hex');
+  const originalKey = `projects/${req.params.projectId}/originals/${fileId}.jpg`;
+  const upload_url = await generatePresignedUploadUrl(originalKey, mime_type as string, 3600);
+  res.json({ upload_url, original_key: originalKey, file_id: fileId });
+});
+
+router.post('/:projectId/media/process', requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { original_key, filename, mime_type } = req.body;
+  if (!original_key || !filename) { res.status(400).json({ detail: 'original_key and filename required' }); return; }
+  const db = await getDb();
+  const project = await db.collection('projects').findOne({ _id: new ObjectId(req.params.projectId) });
+  if (!project) { res.status(404).json({ detail: 'Project not found' }); return; }
+  const fileId = (original_key as string).split('/').pop()!.replace('.jpg', '');
+  const count = await db.collection('media').countDocuments({ project_id: req.params.projectId });
+  try {
+    const result = await processUploadedProjectImage(original_key, req.params.projectId, fileId);
+    const mediaDoc = newMedia(req.params.projectId, original_key, result.compressed_key, result.thumbnail_key, result.watermarked_key, filename, mime_type || 'image/jpeg', result.width, result.height, result.size_bytes, result.compressed_size_bytes, count);
+    const insert = await db.collection('media').insertOne(mediaDoc);
+    res.status(201).json({ media_id: insert.insertedId.toString() });
+  } catch (err) {
+    console.error(`[MEDIA] Failed to process ${filename}:`, err);
+    res.status(422).json({ detail: 'Failed to process image.' });
+  }
 });
 
 router.delete('/:projectId/media/:mediaId', requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {

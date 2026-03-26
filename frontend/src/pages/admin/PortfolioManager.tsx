@@ -126,11 +126,31 @@ export default function PortfolioManager() {
       if (snapshot[i].status === 'error') continue;
       setUploadFiles((prev) => prev.map((f, idx) => idx === i ? { ...f, status: 'uploading' } : f));
       try {
-        const form = new FormData();
-        form.append('title', snapshot[i].title);
-        form.append('category', batchCategory);
-        form.append('image', snapshot[i].file);
-        await api.post('/admin/portfolio', form);
+        const file = snapshot[i].file;
+        const mimeType = file.type || 'image/jpeg';
+
+        // Step 1: get presigned S3 upload URL
+        const { data: presign } = await api.post('/admin/portfolio/presign', {
+          filename: file.name,
+          mime_type: mimeType,
+        });
+
+        // Step 2: upload directly to S3 (bypasses Vercel size limit)
+        const s3Res = await fetch(presign.upload_url, {
+          method: 'PUT',
+          body: file,
+          headers: { 'Content-Type': mimeType },
+        });
+        if (!s3Res.ok) throw new Error(`S3 upload failed: ${s3Res.status}`);
+
+        // Step 3: tell backend to process the uploaded file
+        await api.post('/admin/portfolio/process', {
+          temp_key: presign.temp_key,
+          file_id: presign.file_id,
+          title: snapshot[i].title,
+          category: batchCategory,
+        });
+
         setUploadFiles((prev) => prev.map((f, idx) => idx === i ? { ...f, status: 'done' } : f));
       } catch (err) {
         console.error(`[PORTFOLIO] Upload failed for ${snapshot[i].file.name}:`, err);
