@@ -15,6 +15,7 @@ interface UploadFile {
   file: File;
   title: string;
   status: 'pending' | 'uploading' | 'done' | 'error';
+  errorMsg?: string;
 }
 
 function TagSelector({
@@ -153,8 +154,9 @@ export default function PortfolioManager() {
 
         setUploadFiles((prev) => prev.map((f, idx) => idx === i ? { ...f, status: 'done' } : f));
       } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
         console.error(`[PORTFOLIO] Upload failed for ${snapshot[i].file.name}:`, err);
-        setUploadFiles((prev) => prev.map((f, idx) => idx === i ? { ...f, status: 'error' } : f));
+        setUploadFiles((prev) => prev.map((f, idx) => idx === i ? { ...f, status: 'error', errorMsg: msg } : f));
       }
     }
     setUploading(false);
@@ -270,7 +272,7 @@ export default function PortfolioManager() {
                     />
                     <span className="text-xs w-20 text-right shrink-0" title={isHeic(uf.file) ? 'HEIC format not supported — convert to JPEG first' : undefined}>
                       {uf.status === 'done' ? <span className="text-green-600">✓ Done</span> :
-                       uf.status === 'error' ? <span className="text-red-500" title={isHeic(uf.file) ? 'HEIC not supported' : 'Upload failed'}>{isHeic(uf.file) ? '✗ HEIC' : '✗ Error'}</span> :
+                       uf.status === 'error' ? <span className="text-red-500" title={isHeic(uf.file) ? 'HEIC not supported' : (uf.errorMsg || 'Upload failed')}>{isHeic(uf.file) ? '✗ HEIC' : '✗ Error'}</span> :
                        uf.status === 'uploading' ? <span className="text-blue-500">Uploading</span> :
                        <span className="text-muted">Pending</span>}
                     </span>
