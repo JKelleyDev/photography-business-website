@@ -10,6 +10,8 @@ export default function ClientList() {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ email: '', name: '', phone: '' });
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'newest' | 'oldest'>('newest');
 
   useEffect(() => { load(); }, []);
 
@@ -27,6 +29,22 @@ export default function ClientList() {
     load();
   }
 
+  const filtered = clients
+    .filter((c) => {
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return (
+        c.name?.toLowerCase().includes(q) ||
+        c.email.toLowerCase().includes(q) ||
+        c.phone?.toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => {
+      if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
+      const diff = new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime();
+      return sortBy === 'newest' ? -diff : diff;
+    });
+
   if (loading) return <LoadingSpinner />;
 
   return (
@@ -35,6 +53,26 @@ export default function ClientList() {
         <h1 className="text-2xl font-bold text-primary">Clients</h1>
         <Button onClick={() => setShowAdd(true)}>Add Client</Button>
       </div>
+
+      <div className="flex flex-wrap gap-3 mb-4">
+        <input
+          type="text"
+          placeholder="Search by name, email, or phone…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1 min-w-48 px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent bg-white"
+        />
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+          className="text-sm border rounded-lg px-3 py-2 bg-white outline-none focus:ring-2 focus:ring-accent"
+        >
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="name">Name A–Z</option>
+        </select>
+      </div>
+
       <div className="bg-white border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
@@ -46,18 +84,30 @@ export default function ClientList() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {clients.map((client) => (
-              <tr key={client.id}>
-                <td className="px-4 py-3 font-medium">{client.name || '—'}</td>
-                <td className="px-4 py-3 text-muted">{client.email}</td>
-                <td className="px-4 py-3 text-muted hidden sm:table-cell">{client.phone || '—'}</td>
-                <td className="px-4 py-3">
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${client.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                    {client.is_active ? 'Active' : 'Inactive'}
-                  </span>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-4 py-8 text-center text-muted">
+                  {search ? 'No clients match your search.' : 'No clients yet.'}
                 </td>
               </tr>
-            ))}
+            ) : (
+              filtered.map((client) => (
+                <tr key={client.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium">{client.name || '—'}</td>
+                  <td className="px-4 py-3 text-muted">
+                    <a href={`mailto:${client.email}`} className="hover:text-accent">{client.email}</a>
+                  </td>
+                  <td className="px-4 py-3 text-muted hidden sm:table-cell">
+                    {client.phone ? <a href={`tel:${client.phone}`} className="hover:text-accent">{client.phone}</a> : '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${client.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                      {client.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

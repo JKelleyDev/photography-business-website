@@ -2,6 +2,9 @@ import { Router, Response } from 'express';
 import { ObjectId } from 'mongodb';
 import { getDb } from '../../database';
 import { requireAdmin, AuthRequest } from '../../middleware/auth';
+import { newUser } from '../../models/user';
+import { hashPassword, createInviteToken } from '../../services/auth';
+import { sendInviteEmail } from '../../services/email';
 
 const router = Router();
 
@@ -24,8 +27,24 @@ router.put('/:inquiryId', requireAdmin, async (req: AuthRequest, res: Response):
   const valid = ['new', 'contacted', 'booked', 'closed'];
   if (!valid.includes(req.body.status)) { res.status(400).json({ detail: `Status must be one of: ${valid.join(', ')}` }); return; }
   const db = await getDb();
-  const result = await db.collection('inquiries').updateOne({ _id: new ObjectId(req.params.inquiryId) }, { $set: { status: req.body.status } });
-  if (!result.matchedCount) { res.status(404).json({ detail: 'Inquiry not found' }); return; }
+  const inq = await db.collection('inquiries').findOneAndUpdate(
+    { _id: new ObjectId(req.params.inquiryId) },
+    { $set: { status: req.body.status } },
+    { returnDocument: 'after' },
+  );
+  if (!inq) { res.status(404).json({ detail: 'Inquiry not found' }); return; }
+
+  if (req.body.status === 'contacted') {
+    const existing = await db.collection('users').findOne({ email: inq.email });
+    if (!existing) {
+      const inviteToken = createInviteToken();
+      const clientDoc = newUser(inq.email, hashPassword(inviteToken), 'client', inq.name);
+      (clientDoc as Record<string, unknown>).invite_token = inviteToken;
+      await db.collection('users').insertOne(clientDoc);
+      // Invite email intentionally not sent — client portal accounts not yet enabled
+    }
+  }
+
   res.json({ message: 'Updated' });
 });
 

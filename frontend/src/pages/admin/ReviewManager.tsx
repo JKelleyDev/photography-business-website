@@ -6,9 +6,13 @@ import Button from '../../components/ui/Button';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { formatDate } from '../../utils/dateHelpers';
 
+const APPROVAL_FILTERS = ['all', 'pending', 'approved'] as const;
+
 export default function ReviewManager() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
+  const [approvalFilter, setApprovalFilter] = useState<string>('pending');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'rating-high' | 'rating-low'>('newest');
 
   useEffect(() => { load(); }, []);
 
@@ -29,16 +33,56 @@ export default function ReviewManager() {
     load();
   }
 
+  const filtered = reviews
+    .filter((r) => {
+      if (approvalFilter === 'pending') return !r.is_approved;
+      if (approvalFilter === 'approved') return r.is_approved;
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'rating-high') return b.rating - a.rating;
+      if (sortBy === 'rating-low') return a.rating - b.rating;
+      const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return sortBy === 'newest' ? -diff : diff;
+    });
+
   if (loading) return <LoadingSpinner />;
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-primary mb-6">Reviews</h1>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          {APPROVAL_FILTERS.map((f) => (
+            <button
+              key={f}
+              onClick={() => setApprovalFilter(f)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-colors ${
+                approvalFilter === f ? 'bg-white text-primary shadow-sm' : 'text-muted hover:text-primary'
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+          className="text-sm border rounded-lg px-3 py-1.5 bg-white outline-none focus:ring-2 focus:ring-accent"
+        >
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="rating-high">Highest rating</option>
+          <option value="rating-low">Lowest rating</option>
+        </select>
+      </div>
+
       <div className="space-y-4">
-        {reviews.length === 0 ? (
-          <p className="text-muted text-center py-12">No reviews yet.</p>
+        {filtered.length === 0 ? (
+          <p className="text-muted text-center py-12">No reviews found.</p>
         ) : (
-          reviews.map((review) => (
+          filtered.map((review) => (
             <div key={review.id} className={`bg-white border rounded-lg p-4 ${!review.is_approved ? 'border-amber-200 bg-amber-50/30' : ''}`}>
               <div className="flex items-start justify-between">
                 <div>

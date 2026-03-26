@@ -50,7 +50,7 @@ router.post('/', requireAdmin, async (req: AuthRequest, res: Response): Promise<
     (clientDoc as Record<string, unknown>).invite_token = inviteToken;
     const result = await db.collection('users').insertOne(clientDoc);
     clientId = result.insertedId.toString();
-    await sendInviteEmail(client_email, client_name, inviteToken);
+    // Invite email intentionally not sent — client portal accounts not yet enabled
   } else {
     clientId = existing._id.toString();
   }
