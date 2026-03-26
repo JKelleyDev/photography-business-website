@@ -17,7 +17,7 @@ export const config = {
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || '',
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || '',
 
-  SENDGRID_API_KEY: process.env.SENDGRID_API_KEY || '',
+  RESEND_API_KEY: process.env.RESEND_API_KEY || '',
   FROM_EMAIL: process.env.FROM_EMAIL || 'hello@madphotography.com',
 
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',

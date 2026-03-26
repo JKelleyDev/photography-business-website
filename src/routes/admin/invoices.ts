@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb';
 import { getDb } from '../../database';
 import { requireAdmin, AuthRequest } from '../../middleware/auth';
 import { newInvoice } from '../../models/invoice';
+import { sendInvoiceEmail } from '../../services/email';
 
 const router = Router();
 
@@ -38,8 +39,26 @@ router.put('/:invoiceId/status', requireAdmin, async (req: AuthRequest, res: Res
   const db = await getDb();
   const update: Record<string, unknown> = { status };
   if (status === 'paid') update.paid_at = new Date();
-  const result = await db.collection('invoices').updateOne({ _id: new ObjectId(req.params.invoiceId) }, { $set: update });
-  if (!result.matchedCount) { res.status(404).json({ detail: 'Invoice not found' }); return; }
+  const inv = await db.collection('invoices').findOneAndUpdate(
+    { _id: new ObjectId(req.params.invoiceId) },
+    { $set: update },
+    { returnDocument: 'after' },
+  );
+  if (!inv) { res.status(404).json({ detail: 'Invoice not found' }); return; }
+
+  if (status === 'sent') {
+    const client = await db.collection('users').findOne({ _id: new ObjectId(inv.client_id) });
+    if (client) {
+      const project = inv.project_id
+        ? await db.collection('projects').findOne({ _id: new ObjectId(inv.project_id) })
+        : null;
+      const projectTitle = (project?.title as string) ?? 'Photography Services';
+      const amountDue = `$${((inv.amount_cents as number) / 100).toFixed(2)}`;
+      const dueDate = new Date(inv.due_date as Date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      sendInvoiceEmail(client.email, client.name ?? client.email, inv.token as string, projectTitle, amountDue, dueDate);
+    }
+  }
+
   res.json({ message: `Invoice marked as ${status}` });
 });
 
