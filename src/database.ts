@@ -13,7 +13,11 @@ export async function getDb(): Promise<Db> {
   const dbName = config.MONGO_URI.split('/').pop()?.split('?')[0] || 'mad_photography';
   const db = client.db(dbName);
 
-  await createIndexes(db);
+  try {
+    await createIndexes(db);
+  } catch (err) {
+    console.warn('[DB] Index creation failed (non-fatal):', err);
+  }
 
   cachedClient = client;
   cachedDb = db;

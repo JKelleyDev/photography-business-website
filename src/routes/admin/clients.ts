@@ -24,8 +24,8 @@ router.post('/', requireAdmin, async (req: AuthRequest, res: Response): Promise<
   (user as Record<string, unknown>).phone = phone ?? null;
   (user as Record<string, unknown>).invite_token = inviteToken;
   const result = await db.collection('users').insertOne(user);
-  await sendInviteEmail(email, name, inviteToken);
-  res.status(201).json({ id: result.insertedId.toString(), message: 'Client created and invite sent' });
+  // Invite email intentionally not sent — client portal accounts not yet enabled
+  res.status(201).json({ id: result.insertedId.toString(), message: 'Client created' });
 });
 
 export default router;

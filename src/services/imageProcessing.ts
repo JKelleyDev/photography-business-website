@@ -1,6 +1,16 @@
 import sharp from 'sharp';
 import crypto from 'crypto';
-import { uploadFileToS3 } from './s3';
+import { uploadFileToS3, deleteFileFromS3, getS3ObjectStream } from './s3';
+
+async function downloadFromS3(key: string): Promise<Buffer> {
+  const stream = await getS3ObjectStream(key);
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+    stream.on('error', reject);
+  });
+}
 
 const COMPRESSED_MAX_EDGE = 2048;
 const COMPRESSED_QUALITY = 82;
@@ -91,6 +101,68 @@ export async function processAndUploadImage(
     size_bytes: fileBuffer.length,
     compressed_size_bytes: compressedBuffer.length,
   };
+}
+
+// Used by the presigned upload flow: browser already uploaded original to S3, backend processes it
+export async function processUploadedProjectImage(
+  originalKey: string,
+  projectId: string,
+  fileId: string,
+): Promise<{
+  compressed_key: string;
+  thumbnail_key: string;
+  watermarked_key: string;
+  width: number;
+  height: number;
+  size_bytes: number;
+  compressed_size_bytes: number;
+}> {
+  const fileBuffer = await downloadFromS3(originalKey);
+  const meta = await sharp(fileBuffer).rotate().metadata();
+  const width = meta.width || 0;
+  const height = meta.height || 0;
+
+  const compressedBuffer = await resizeToJpeg(fileBuffer, COMPRESSED_MAX_EDGE, COMPRESSED_QUALITY);
+  const compressedKey = `projects/${projectId}/compressed/${fileId}.jpg`;
+  await uploadFileToS3(compressedKey, compressedBuffer, 'image/jpeg');
+
+  const thumbnailBuffer = await resizeToJpeg(fileBuffer, THUMBNAIL_MAX_EDGE, THUMBNAIL_QUALITY);
+  const thumbnailKey = `projects/${projectId}/thumbnails/${fileId}.jpg`;
+  await uploadFileToS3(thumbnailKey, thumbnailBuffer, 'image/jpeg');
+
+  const watermarkedBuffer = await applyWatermark(compressedBuffer);
+  const watermarkedKey = `projects/${projectId}/watermarked/${fileId}.jpg`;
+  await uploadFileToS3(watermarkedKey, watermarkedBuffer, 'image/jpeg');
+
+  return {
+    compressed_key: compressedKey,
+    thumbnail_key: thumbnailKey,
+    watermarked_key: watermarkedKey,
+    width,
+    height,
+    size_bytes: fileBuffer.length,
+    compressed_size_bytes: compressedBuffer.length,
+  };
+}
+
+// Used by the presigned upload flow for portfolio: processes from temp S3 key then deletes it
+export async function processUploadedPortfolioImage(
+  tempKey: string,
+  fileId: string,
+): Promise<{ image_key: string; thumbnail_key: string }> {
+  const fileBuffer = await downloadFromS3(tempKey);
+
+  const fullBuffer = await resizeToJpeg(fileBuffer, COMPRESSED_MAX_EDGE, COMPRESSED_QUALITY);
+  const imageKey = `portfolio/${fileId}.jpg`;
+  await uploadFileToS3(imageKey, fullBuffer, 'image/jpeg');
+
+  const thumbBuffer = await resizeToJpeg(fileBuffer, THUMBNAIL_MAX_EDGE, THUMBNAIL_QUALITY);
+  const thumbnailKey = `portfolio/thumbnails/${fileId}.jpg`;
+  await uploadFileToS3(thumbnailKey, thumbBuffer, 'image/jpeg');
+
+  await deleteFileFromS3(tempKey);
+
+  return { image_key: imageKey, thumbnail_key: thumbnailKey };
 }
 
 export async function processAndUploadPortfolioImage(

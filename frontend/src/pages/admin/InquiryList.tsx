@@ -14,10 +14,14 @@ const statusColors: Record<string, string> = {
   closed: 'bg-gray-100 text-gray-700',
 };
 
+const STATUS_FILTERS = ['all', 'new', 'contacted', 'booked', 'closed'] as const;
+
 export default function InquiryList() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [packages, setPackages] = useState<Record<string, PricingPackage>>({});
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
 
   useEffect(() => { load(); }, []);
 
@@ -28,9 +32,7 @@ export default function InquiryList() {
     ]);
     setInquiries(inqRes.data.inquiries);
     const pkgMap: Record<string, PricingPackage> = {};
-    for (const pkg of pkgRes.data.packages) {
-      pkgMap[pkg.id] = pkg;
-    }
+    for (const pkg of pkgRes.data.packages) pkgMap[pkg.id] = pkg;
     setPackages(pkgMap);
     setLoading(false);
   }
@@ -40,16 +42,48 @@ export default function InquiryList() {
     load();
   }
 
+  const filtered = inquiries
+    .filter((inq) => statusFilter === 'all' || inq.status === statusFilter)
+    .sort((a, b) => {
+      const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return sortDir === 'desc' ? -diff : diff;
+    });
+
   if (loading) return <LoadingSpinner />;
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-primary mb-6">Inquiries</h1>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          {STATUS_FILTERS.map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-colors ${
+                statusFilter === s ? 'bg-white text-primary shadow-sm' : 'text-muted hover:text-primary'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <select
+          value={sortDir}
+          onChange={(e) => setSortDir(e.target.value as 'desc' | 'asc')}
+          className="text-sm border rounded-lg px-3 py-1.5 bg-white outline-none focus:ring-2 focus:ring-accent"
+        >
+          <option value="desc">Newest first</option>
+          <option value="asc">Oldest first</option>
+        </select>
+      </div>
+
       <div className="space-y-4">
-        {inquiries.length === 0 ? (
-          <p className="text-muted text-center py-12">No inquiries yet.</p>
+        {filtered.length === 0 ? (
+          <p className="text-muted text-center py-12">No inquiries found.</p>
         ) : (
-          inquiries.map((inq) => {
+          filtered.map((inq) => {
             const pkg = inq.package_id ? packages[inq.package_id] : null;
             return (
               <div key={inq.id} className="bg-white border rounded-lg p-5">

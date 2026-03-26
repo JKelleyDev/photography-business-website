@@ -1098,3 +1098,22 @@ The Python/FastAPI backend has been fully replaced with a Node.js/TypeScript/Exp
 2. **Image upload size limit** — `multer` is set to 50MB per file. Vercel has a 4.5MB body limit on the Hobby plan and 50MB on Pro. For uploads >4.5MB on Hobby, switch to presigned S3 upload URLs (frontend uploads directly to S3, then POSTs the S3 key to the backend for processing).
 
 3. **Remove `/api/debug-env` diagnostic route** — `src/app.ts` has a temporary `/api/debug-env` endpoint that exposes env var presence. Remove before going to production.
+
+4. **Fix Resend domain verification** — Emails are currently sending from Resend's default domain. Add and verify `madphotography.com` in the Resend dashboard and configure the DNS records so emails send from `hello@madphotography.com`. Until this is done, client emails may land in spam.
+
+---
+
+## Future Roadmap
+
+### Financial & Reporting
+- **Tax-compliant earnings statements** — Monthly, quarterly, and annual revenue reports exportable as PDF. Must include line items, client names, dates, and totals in a format suitable for tax filing or handing to an accountant.
+- **In-depth revenue dashboard** — Metrics view with: total revenue (MTD, QTD, YTD), revenue by client, revenue by package type, average invoice value, paid vs outstanding amounts, payment velocity trends, and a visual chart/graph breakdown.
+- **Expense tracking** — Admin can log business expenses (equipment, travel, software, marketing, etc.) with category tags and dates. Expenses offset against revenue in earnings statements and the revenue dashboard.
+
+### Booking & Scheduling
+- **Calendar-based booking system** — Admin sets available dates/time slots. Clients (or inquiries) can request a booking from the public pricing/contact page. Admin confirms or declines. Bookings sync to a visual calendar in the admin portal. Consider Google Calendar API integration for two-way sync.
+- **Booking flow from inquiry** — Inquiry form should optionally let the client propose a date/time from available slots, reducing back-and-forth communication.
+
+### Communication
+- **Integrated business email in admin portal** — Embed a lightweight email inbox (or thread view) inside the admin portal so all client communication stays in one place. Options: integrate with Zoho Mail API, Gmail API (if using Google Workspace), or a transactional-to-inbox bridge. Goal is to avoid switching between the app and a separate email client.
+- **Email templates editor** — Admin-editable email templates for gallery delivery, invoice, and inquiry confirmation emails so the business owner can customize messaging without a code deploy.

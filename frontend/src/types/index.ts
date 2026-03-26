@@ -5,6 +5,7 @@ export interface User {
   name: string;
   phone?: string;
   is_active: boolean;
+  created_at?: string;
 }
 
 export interface Project {

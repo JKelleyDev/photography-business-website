@@ -41,28 +41,58 @@ export default function ProjectDetail() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [uploading]);
 
+  function isHeic(file: File): boolean {
+    const name = file.name.toLowerCase();
+    return file.type === 'image/heic' || file.type === 'image/heif' || name.endsWith('.heic') || name.endsWith('.heif');
+  }
+
   async function handleUpload(files: FileList) {
-    const fileArray = Array.from(files);
+    const allFiles = Array.from(files);
+    const heicFiles = allFiles.filter(isHeic);
+    if (heicFiles.length) {
+      alert(`${heicFiles.length} photo(s) were skipped — HEIC format is not supported.\n\nTo fix on iPhone: Settings → Camera → Formats → Most Compatible (saves as JPEG)`);
+    }
+    const fileArray = allFiles.filter((f) => !isHeic(f));
+    if (!fileArray.length) return;
     const total = fileArray.length;
     setUploading(true);
     setUploadProgress({ completed: 0, total, currentFile: '', currentPct: 0 });
     let failed = 0;
     for (let i = 0; i < total; i++) {
       const file = fileArray[i];
-      const formData = new FormData();
-      formData.append('files', file);
+      const mimeType = file.type || 'image/jpeg';
       setUploadProgress({ completed: i, total, currentFile: file.name, currentPct: 0 });
       try {
-        await api.post(`/admin/projects/${id}/media`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          onUploadProgress: (e) => {
-            if (e.total) {
+        // Step 1: get presigned S3 upload URL
+        const { data: presign } = await api.post(`/admin/projects/${id}/media/presign`, {
+          filename: file.name,
+          mime_type: mimeType,
+        });
+
+        // Step 2: upload directly to S3 (bypasses Vercel size limit)
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
               setUploadProgress({ completed: i, total, currentFile: file.name, currentPct: Math.round((e.loaded * 100) / e.total) });
             }
-          },
+          };
+          xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`S3 upload failed: ${xhr.status}`)));
+          xhr.onerror = () => reject(new Error('S3 upload network error'));
+          xhr.open('PUT', presign.upload_url);
+          xhr.setRequestHeader('Content-Type', mimeType);
+          xhr.send(file);
+        });
+
+        // Step 3: tell backend to process the uploaded file
+        setUploadProgress({ completed: i, total, currentFile: file.name, currentPct: 100 });
+        await api.post(`/admin/projects/${id}/media/process`, {
+          original_key: presign.original_key,
+          filename: file.name,
+          mime_type: mimeType,
         });
       } catch (err) {
-        console.error(`Upload failed for ${file.name}`, err);
+        console.error(`[MEDIA] Upload failed for ${file.name}:`, err);
         failed++;
       }
     }

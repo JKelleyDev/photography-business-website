@@ -12,9 +12,13 @@ const statusColors: Record<string, string> = {
   archived: 'bg-gray-100 text-gray-700',
 };
 
+const STATUS_FILTERS = ['all', 'active', 'delivered', 'archived'] as const;
+
 export default function ProjectList() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>('active');
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
 
   useEffect(() => { load(); }, []);
 
@@ -23,6 +27,13 @@ export default function ProjectList() {
     setProjects(data.projects);
     setLoading(false);
   }
+
+  const filtered = projects
+    .filter((p) => statusFilter === 'all' || p.status === statusFilter)
+    .sort((a, b) => {
+      const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return sortDir === 'desc' ? -diff : diff;
+    });
 
   if (loading) return <LoadingSpinner />;
 
@@ -34,11 +45,36 @@ export default function ProjectList() {
           <Button>New Project</Button>
         </Link>
       </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          {STATUS_FILTERS.map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-colors ${
+                statusFilter === s ? 'bg-white text-primary shadow-sm' : 'text-muted hover:text-primary'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <select
+          value={sortDir}
+          onChange={(e) => setSortDir(e.target.value as 'desc' | 'asc')}
+          className="text-sm border rounded-lg px-3 py-1.5 bg-white outline-none focus:ring-2 focus:ring-accent"
+        >
+          <option value="desc">Newest first</option>
+          <option value="asc">Oldest first</option>
+        </select>
+      </div>
+
       <div className="space-y-3">
-        {projects.length === 0 ? (
-          <p className="text-muted text-center py-12">No projects yet.</p>
+        {filtered.length === 0 ? (
+          <p className="text-muted text-center py-12">No projects found.</p>
         ) : (
-          projects.map((project) => (
+          filtered.map((project) => (
             <Link
               key={project.id}
               to={`/admin/projects/${project.id}`}
