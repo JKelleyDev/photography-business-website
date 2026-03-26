@@ -1068,48 +1068,33 @@ export async function getDb() {
 The Python/FastAPI backend has been fully replaced with a Node.js/TypeScript/Express backend.
 
 ### What Was Done
-- ✅ Created `backend/package.json` with all Node.js dependencies
-- ✅ Created `backend/tsconfig.json` (CommonJS target, ES2022)
-- ✅ `src/config.ts` — typed env config with dotenv
+- ✅ `package.json` + `tsconfig.json` at repo root (moved from `backend/`)
+- ✅ `src/` at repo root — all backend source (moved from `backend/src/`)
+- ✅ `api/index.ts` at repo root — Vercel serverless entry point (moved from `backend/api/`)
+- ✅ `scripts/seed_admin.ts` at repo root (moved from `backend/scripts/`)
+- ✅ `src/config.ts` — typed env config with dotenv (reads `.env` at repo root)
 - ✅ `src/database.ts` — MongoDB connection with serverless caching + 5s timeout + index creation
 - ✅ `src/app.ts` — Express app with CORS, cookie-parser, rate limiting, all routers mounted, `express-async-errors` for safe async error handling
 - ✅ `src/server.ts` — local dev entry (non-blocking startup, lazy DB connect)
-- ✅ `api/index.ts` — Vercel serverless entry point
-- ✅ `vercel.json` — root-level routing: `/api/*` → Node serverless, `/*` → frontend static
-- ✅ All 9 model factory functions ported to TypeScript
-- ✅ All 5 services ported: auth (bcryptjs + jsonwebtoken), s3 (AWS SDK v3), imageProcessing (sharp + SVG watermark), email (SendGrid), stripe
-- ✅ All utils ported: tokens (crypto.randomBytes), zipStream (archiver streaming)
+- ✅ `vercel.json` — root-level routing: `/api/:path*` → `api/index.ts`, `/*` → `index.html`
+- ✅ All 9 model factory functions in TypeScript
+- ✅ All 5 services: auth (bcryptjs + jsonwebtoken), s3 (AWS SDK v3), imageProcessing (sharp + SVG watermark), email (SendGrid), stripe
+- ✅ All utils: tokens (crypto.randomBytes), zipStream (archiver streaming)
 - ✅ Auth middleware: `requireAuth`, `requireAdmin`, `requireClient`
 - ✅ Global error handler with 503 for MongoDB unavailable, 500 for unexpected errors
-- ✅ All 13 route files ported (auth, public, gallery, 10 admin, 2 client)
-- ✅ `scripts/seed_admin.ts` ported from Python
-- ✅ Python backend removed (`backend/app/`, `requirements.txt`, `pyproject.toml`, `Dockerfile`)
+- ✅ All 13 route files (auth, public, gallery, 10 admin, 2 client)
+- ✅ Python backend fully removed (`backend/` directory deleted)
+- ✅ `docker-compose.yml` updated — MongoDB only, Python backend service removed
+- ✅ `VITE_API_URL` removed from Vercel env vars — frontend uses relative `/api` paths
 - ✅ TypeScript compilation: **0 errors**
-- ✅ Sandbox smoke tests passed:
-  - `GET /api/health` → `{"status":"healthy"}`
-  - `GET /api/admin/dashboard` (no token) → `{"detail":"Missing token"}` (401)
-  - `POST /api/auth/login` (no DB) → `{"detail":"Database unavailable"}` (503)
-  - `GET /api/admin/dashboard` (bad token) → `{"detail":"Invalid token"}` (401)
-  - `GET /api/pricing` (no DB) → `{"detail":"Database unavailable"}` (503)
-  - Server **stays alive** after MongoDB errors (no more crash-on-DB-failure)
-- ✅ README fully updated to reflect Node.js stack
+- ✅ Server smoke tested locally: health, auth middleware, JWT validation all working
+- ✅ Vercel deployment confirmed working on staging branch
+- ✅ README fully updated to reflect new root-level structure and local dev instructions
 
 ### Remaining Tasks / Known Issues
 
-1. **`@types/express` version in CLAUDE.md plan** — The plan doc lists `"@types/express": "^5.0.0"` but actual code uses `^4.17.21` (Express v4 types). The plan doc is cosmetic-only; actual code is correct.
+1. **Rate limiter in serverless** — `express-rate-limit` uses in-memory storage by default. In serverless, each cold start gets its own memory, so rate limits are per-instance, not global. For production, configure a Redis store (e.g., `rate-limit-redis`) if global rate limiting is required.
 
-2. **End-to-end test with real MongoDB + S3** — Sandbox tests confirmed server startup, auth middleware, and error handling. Full integration tests (image upload, gallery delivery, zip download, email) require a real MongoDB connection and AWS S3 credentials. Recommended: deploy to Vercel preview and test with a staging environment.
+2. **Image upload size limit** — `multer` is set to 50MB per file. Vercel has a 4.5MB body limit on the Hobby plan and 50MB on Pro. For uploads >4.5MB on Hobby, switch to presigned S3 upload URLs (frontend uploads directly to S3, then POSTs the S3 key to the backend for processing).
 
-3. **`docker-compose.yml` is stale** — The existing `docker-compose.yml` still references the Python backend (uvicorn). Update it to run MongoDB only (for local dev) or replace with a simple `docker run mongo:7` instruction in the README. Low priority.
-
-4. **Frontend build verification** — The frontend was not changed, but it should be rebuilt and tested end-to-end against the new Node.js backend to confirm all API responses parse correctly (especially date formats — Python returned ISO strings, Node.js returns JS Date objects serialized to ISO strings, which should be compatible).
-
-5. **Vercel deployment test** — The `vercel.json` routing has not been tested in a live Vercel deployment. Verify that:
-   - `/api/*` routes correctly to the Node.js function
-   - `/` and `/*` serve the frontend SPA correctly
-   - Environment variables are set in Vercel project settings
-   - `sharp` native binaries work in Vercel's Node.js runtime (they should — Vercel uses Amazon Linux x64)
-
-6. **Rate limiter in serverless** — `express-rate-limit` uses in-memory storage by default. In serverless, each cold start gets its own memory, so rate limits are per-instance, not global. For production, configure a Redis store (e.g., `rate-limit-redis`) if global rate limiting is required.
-
-7. **Image upload size limit** — `multer` is set to 50MB per file. Vercel has a 4.5MB body limit on the Hobby plan and 50MB on Pro. For uploads >4.5MB on Hobby, switch to presigned S3 upload URLs (frontend uploads directly to S3, then POSTs the S3 key to the backend for processing).
+3. **Remove `/api/debug-env` diagnostic route** — `src/app.ts` has a temporary `/api/debug-env` endpoint that exposes env var presence. Remove before going to production.
