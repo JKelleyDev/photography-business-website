@@ -1,6 +1,12 @@
 {
+  "functions": {
+    "backend/api/index.ts": {
+      "memory": 1024,
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/backend/api/index.ts" },
+    { "source": "/api/:path*", "destination": "/backend/api/index.ts" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

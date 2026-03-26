@@ -71,6 +71,18 @@ app.all('/api/health', (_req, res) => {
   res.json({ status: 'healthy' });
 });
 
+// Diagnostic — remove after confirming Vercel env vars are working
+app.get('/api/debug-env', (_req, res) => {
+  res.json({
+    mongo_uri_set: !!process.env.MONGO_URI,
+    jwt_secret_set: !!process.env.JWT_SECRET,
+    aws_key_set: !!process.env.AWS_ACCESS_KEY_ID,
+    s3_bucket: process.env.S3_BUCKET_NAME || 'NOT SET',
+    frontend_url: process.env.FRONTEND_URL || 'NOT SET',
+    node_env: process.env.NODE_ENV || 'NOT SET',
+  });
+});
+
 app.use(errorHandler);
 
 export default app;
