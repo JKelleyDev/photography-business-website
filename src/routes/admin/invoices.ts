@@ -55,7 +55,7 @@ router.put('/:invoiceId/status', requireAdmin, async (req: AuthRequest, res: Res
       const projectTitle = (project?.title as string) ?? 'Photography Services';
       const amountDue = `$${((inv.amount_cents as number) / 100).toFixed(2)}`;
       const dueDate = new Date(inv.due_date as Date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-      sendInvoiceEmail(client.email, client.name ?? client.email, inv.token as string, projectTitle, amountDue, dueDate);
+      await sendInvoiceEmail(client.email, client.name ?? client.email, inv.token as string, projectTitle, amountDue, dueDate);
     }
   }
 
