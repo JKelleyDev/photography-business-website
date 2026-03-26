@@ -30,12 +30,22 @@ router.post('/', requireAdmin, upload.single('image'), async (req: AuthRequest, 
   if (!req.file) { res.status(400).json({ detail: 'Image file required' }); return; }
   const { title, category = 'general', description } = req.body;
   if (!title) { res.status(400).json({ detail: 'Title required' }); return; }
+  const lowerName = req.file.originalname.toLowerCase();
+  if (req.file.mimetype === 'image/heic' || req.file.mimetype === 'image/heif' || lowerName.endsWith('.heic') || lowerName.endsWith('.heif')) {
+    res.status(422).json({ detail: 'HEIC/HEIF format is not supported. Please convert to JPEG or PNG first.' });
+    return;
+  }
   const db = await getDb();
-  const result = await processAndUploadPortfolioImage(req.file.buffer, req.file.originalname, req.file.mimetype);
-  const count = await db.collection('portfolio_items').countDocuments();
-  const item = newPortfolioItem(title, result.image_key, result.thumbnail_key, category, description ?? null, count);
-  const insert = await db.collection('portfolio_items').insertOne(item);
-  res.status(201).json({ id: insert.insertedId.toString(), message: 'Portfolio item created' });
+  try {
+    const result = await processAndUploadPortfolioImage(req.file.buffer, req.file.originalname, req.file.mimetype);
+    const count = await db.collection('portfolio_items').countDocuments();
+    const item = newPortfolioItem(title, result.image_key, result.thumbnail_key, category, description ?? null, count);
+    const insert = await db.collection('portfolio_items').insertOne(item);
+    res.status(201).json({ id: insert.insertedId.toString(), message: 'Portfolio item created' });
+  } catch (err) {
+    console.error('[PORTFOLIO] Failed to process image:', err);
+    res.status(422).json({ detail: 'Failed to process image. Please ensure the file is a valid JPEG or PNG.' });
+  }
 });
 
 router.put('/reorder', requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {

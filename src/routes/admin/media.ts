@@ -40,14 +40,25 @@ router.post('/:projectId/media', requireAdmin, upload.array('files'), async (req
   if (!project) { res.status(404).json({ detail: 'Project not found' }); return; }
   const count = await db.collection('media').countDocuments({ project_id: req.params.projectId });
   const uploadedIds: string[] = [];
+  const skipped: string[] = [];
   for (let idx = 0; idx < files.length; idx++) {
     const file = files[idx];
-    const result = await processAndUploadImage(file.buffer, req.params.projectId, file.originalname, file.mimetype);
-    const mediaDoc = newMedia(req.params.projectId, result.original_key, result.compressed_key, result.thumbnail_key, result.watermarked_key, file.originalname, file.mimetype, result.width, result.height, result.size_bytes, result.compressed_size_bytes, count + idx);
-    const insert = await db.collection('media').insertOne(mediaDoc);
-    uploadedIds.push(insert.insertedId.toString());
+    const lowerName = file.originalname.toLowerCase();
+    if (file.mimetype === 'image/heic' || file.mimetype === 'image/heif' || lowerName.endsWith('.heic') || lowerName.endsWith('.heif')) {
+      skipped.push(file.originalname);
+      continue;
+    }
+    try {
+      const result = await processAndUploadImage(file.buffer, req.params.projectId, file.originalname, file.mimetype);
+      const mediaDoc = newMedia(req.params.projectId, result.original_key, result.compressed_key, result.thumbnail_key, result.watermarked_key, file.originalname, file.mimetype, result.width, result.height, result.size_bytes, result.compressed_size_bytes, count + idx);
+      const insert = await db.collection('media').insertOne(mediaDoc);
+      uploadedIds.push(insert.insertedId.toString());
+    } catch (err) {
+      console.error(`[MEDIA] Failed to process ${file.originalname}:`, err);
+      skipped.push(file.originalname);
+    }
   }
-  res.status(201).json({ media_ids: uploadedIds, message: `${uploadedIds.length} files uploaded` });
+  res.status(201).json({ media_ids: uploadedIds, skipped, message: `${uploadedIds.length} file(s) uploaded${skipped.length ? `, ${skipped.length} skipped (unsupported format)` : ''}` });
 });
 
 router.delete('/:projectId/media/:mediaId', requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {

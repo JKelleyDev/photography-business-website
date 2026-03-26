@@ -41,8 +41,19 @@ export default function ProjectDetail() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [uploading]);
 
+  function isHeic(file: File): boolean {
+    const name = file.name.toLowerCase();
+    return file.type === 'image/heic' || file.type === 'image/heif' || name.endsWith('.heic') || name.endsWith('.heif');
+  }
+
   async function handleUpload(files: FileList) {
-    const fileArray = Array.from(files);
+    const allFiles = Array.from(files);
+    const heicFiles = allFiles.filter(isHeic);
+    if (heicFiles.length) {
+      alert(`${heicFiles.length} photo(s) were skipped — HEIC format is not supported.\n\nTo fix on iPhone: Settings → Camera → Formats → Most Compatible (saves as JPEG)`);
+    }
+    const fileArray = allFiles.filter((f) => !isHeic(f));
+    if (!fileArray.length) return;
     const total = fileArray.length;
     setUploading(true);
     setUploadProgress({ completed: 0, total, currentFile: '', currentPct: 0 });

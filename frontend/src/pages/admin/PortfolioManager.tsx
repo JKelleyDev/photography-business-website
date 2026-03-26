@@ -104,12 +104,17 @@ export default function PortfolioManager() {
 
   const existingTags = [...new Set(items.map((i) => i.category).filter(Boolean))];
 
+  function isHeic(file: File): boolean {
+    const name = file.name.toLowerCase();
+    return file.type === 'image/heic' || file.type === 'image/heif' || name.endsWith('.heic') || name.endsWith('.heif');
+  }
+
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
     setUploadFiles(files.map((f) => ({
       file: f,
       title: f.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
-      status: 'pending',
+      status: isHeic(f) ? 'error' : 'pending',
     })));
   }
 
@@ -117,6 +122,7 @@ export default function PortfolioManager() {
     if (!uploadFiles.length) return;
     setUploading(true);
     for (let i = 0; i < uploadFiles.length; i++) {
+      if (uploadFiles[i].status === 'error') continue;
       setUploadFiles((prev) => prev.map((f, idx) => idx === i ? { ...f, status: 'uploading' } : f));
       try {
         const form = new FormData();
@@ -167,6 +173,7 @@ export default function PortfolioManager() {
   }
 
   const allDone = uploadFiles.length > 0 && uploadFiles.every((f) => f.status === 'done' || f.status === 'error');
+  const uploadableCount = uploadFiles.filter((f) => f.status === 'pending').length;
 
   if (loading) return <LoadingSpinner />;
 
@@ -239,19 +246,19 @@ export default function PortfolioManager() {
                       disabled={uf.status !== 'pending'}
                       className="flex-1 px-2 py-1.5 border rounded text-sm outline-none focus:ring-2 focus:ring-accent disabled:bg-gray-50 disabled:text-muted"
                     />
-                    <span className="text-xs text-muted w-16 text-right shrink-0">
-                      {uf.status === 'done' ? '✓ Done' :
-                       uf.status === 'error' ? '✗ Error' :
-                       uf.status === 'uploading' ? 'Uploading' :
-                       'Pending'}
+                    <span className="text-xs w-20 text-right shrink-0" title={isHeic(uf.file) ? 'HEIC format not supported — convert to JPEG first' : undefined}>
+                      {uf.status === 'done' ? <span className="text-green-600">✓ Done</span> :
+                       uf.status === 'error' ? <span className="text-red-500" title={isHeic(uf.file) ? 'HEIC not supported' : 'Upload failed'}>{isHeic(uf.file) ? '✗ HEIC' : '✗ Error'}</span> :
+                       uf.status === 'uploading' ? <span className="text-blue-500">Uploading</span> :
+                       <span className="text-muted">Pending</span>}
                     </span>
                   </div>
                 ))}
               </div>
 
               {!allDone ? (
-                <Button onClick={handleBatchUpload} disabled={uploading} className="w-full">
-                  {uploading ? `Uploading ${uploadFiles.filter(f => f.status === 'done').length} / ${uploadFiles.length}…` : `Upload ${uploadFiles.length} photo${uploadFiles.length !== 1 ? 's' : ''}`}
+                <Button onClick={handleBatchUpload} disabled={uploading || uploadableCount === 0} className="w-full">
+                  {uploading ? `Uploading ${uploadFiles.filter(f => f.status === 'done').length} / ${uploadableCount}…` : `Upload ${uploadableCount} photo${uploadableCount !== 1 ? 's' : ''}`}
                 </Button>
               ) : (
                 <Button onClick={closeUpload} className="w-full">Done</Button>
