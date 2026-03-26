@@ -65,7 +65,6 @@ export default function ProjectDetail() {
       setUploadProgress({ completed: i, total, currentFile: file.name, currentPct: 0 });
       try {
         await api.post(`/admin/projects/${id}/media`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
           onUploadProgress: (e) => {
             if (e.total) {
               setUploadProgress({ completed: i, total, currentFile: file.name, currentPct: Math.round((e.loaded * 100) / e.total) });
@@ -73,7 +72,7 @@ export default function ProjectDetail() {
           },
         });
       } catch (err) {
-        console.error(`Upload failed for ${file.name}`, err);
+        console.error(`[MEDIA] Upload failed for ${file.name}:`, err);
         failed++;
       }
     }

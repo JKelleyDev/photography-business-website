@@ -121,17 +121,19 @@ export default function PortfolioManager() {
   async function handleBatchUpload() {
     if (!uploadFiles.length) return;
     setUploading(true);
-    for (let i = 0; i < uploadFiles.length; i++) {
-      if (uploadFiles[i].status === 'error') continue;
+    const snapshot = [...uploadFiles];
+    for (let i = 0; i < snapshot.length; i++) {
+      if (snapshot[i].status === 'error') continue;
       setUploadFiles((prev) => prev.map((f, idx) => idx === i ? { ...f, status: 'uploading' } : f));
       try {
         const form = new FormData();
-        form.append('title', uploadFiles[i].title);
+        form.append('title', snapshot[i].title);
         form.append('category', batchCategory);
-        form.append('image', uploadFiles[i].file);
+        form.append('image', snapshot[i].file);
         await api.post('/admin/portfolio', form);
         setUploadFiles((prev) => prev.map((f, idx) => idx === i ? { ...f, status: 'done' } : f));
-      } catch {
+      } catch (err) {
+        console.error(`[PORTFOLIO] Upload failed for ${snapshot[i].file.name}:`, err);
         setUploadFiles((prev) => prev.map((f, idx) => idx === i ? { ...f, status: 'error' } : f));
       }
     }
