@@ -59,7 +59,7 @@ Browser ──► /api/* ──► Node.js serverless function ──► MongoDB
 ```
 
 - **Frontend** is a Vite-built static bundle served from Vercel's edge CDN.
-- **Backend** is a single Express app mounted at `backend/api/index.ts`, served as a Vercel serverless function for all `/api/*` requests.
+- **Backend** is a single Express app mounted at `api/index.ts`, served as a Vercel serverless function for all `/api/*` requests.
 - **MongoDB** runs on MongoDB Atlas. Connection is cached per serverless instance for performance.
 - **S3** stores all media (originals, compressed, thumbnails, watermarked). Files are never served directly — only via short-lived presigned URLs.
 
@@ -120,82 +120,82 @@ Admin clicks "Deliver Project"
 mad-photography/
 ├── README.md
 ├── CLAUDE.md                    # AI assistant project spec & migration plan
-├── vercel.json                  # Vercel routing: /api/* → backend, /* → frontend
+├── vercel.json                  # Vercel routing: /api/* → serverless fn, /* → frontend
+├── package.json                 # Node.js backend dependencies
+├── tsconfig.json                # TypeScript config (backend)
 ├── .env.example                 # All environment variables
+├── .env                         # Local secrets (gitignored)
 │
-├── backend/
-│   ├── package.json             # Node.js dependencies
-│   ├── tsconfig.json            # TypeScript config
-│   ├── api/
-│   │   └── index.ts             # Vercel serverless entry point
-│   ├── scripts/
-│   │   └── seed_admin.ts        # Create initial admin user (tsx scripts/seed_admin.ts)
-│   └── src/
-│       ├── app.ts               # Express app (CORS, middleware, all routers)
-│       ├── server.ts            # Local dev entry (app.listen on port 8000)
-│       ├── config.ts            # Typed env config
-│       ├── database.ts          # MongoDB connection (cached for serverless)
-│       ├── middleware/
-│       │   ├── auth.ts          # requireAuth, requireAdmin, requireClient
-│       │   └── errorHandler.ts  # Global Express error handler
-│       ├── models/              # Document factory functions (9 collections)
-│       │   ├── user.ts
-│       │   ├── project.ts
-│       │   ├── media.ts
-│       │   ├── portfolio.ts
-│       │   ├── pricing.ts
-│       │   ├── inquiry.ts
-│       │   ├── review.ts
-│       │   ├── invoice.ts
-│       │   └── settings.ts
-│       ├── services/            # Business logic
-│       │   ├── auth.ts          # bcryptjs hash/verify, JWT sign/verify
-│       │   ├── s3.ts            # AWS SDK v3 S3 operations + presigned URLs
-│       │   ├── imageProcessing.ts  # sharp: compress, thumbnail, watermark
-│       │   ├── email.ts         # SendGrid transactional emails
-│       │   └── stripe.ts        # Stripe invoice API (optional)
-│       ├── routes/
-│       │   ├── auth.ts          # POST /login, /refresh, /logout, /set-password, etc.
-│       │   ├── public.ts        # GET /portfolio, /pricing, /reviews; POST /inquiries
-│       │   ├── gallery.ts       # Token-based gallery routes
-│       │   ├── admin/
-│       │   │   ├── portfolio.ts
-│       │   │   ├── pricing.ts
-│       │   │   ├── inquiries.ts
-│       │   │   ├── reviews.ts
-│       │   │   ├── projects.ts
-│       │   │   ├── media.ts
-│       │   │   ├── clients.ts
-│       │   │   ├── invoices.ts
-│       │   │   ├── settings.ts
-│       │   │   └── dashboard.ts
-│       │   └── client/
-│       │       ├── projects.ts
-│       │       └── invoices.ts
-│       └── utils/
-│           ├── tokens.ts        # generateShareToken (crypto.randomBytes)
-│           └── zipStream.ts     # Streaming zip via archiver + S3 streams
+├── api/
+│   └── index.ts                 # Vercel serverless entry point (auto-detected by Vercel)
 │
-├── frontend/
-│   ├── package.json
-│   ├── vite.config.ts           # Dev proxy: /api → localhost:8000
-│   └── src/
-│       ├── main.tsx
-│       ├── App.tsx              # All routes defined here
-│       ├── api/client.ts        # Axios instance with auth interceptors
-│       ├── components/          # Layout + reusable UI components
-│       ├── pages/
-│       │   ├── public/          # Home, Portfolio, Pricing, About, Reviews
-│       │   ├── auth/            # Login, SetPassword, ForgotPassword
-│       │   ├── gallery/         # SharedGallery, ImageView
-│       │   ├── admin/           # Dashboard, Projects, Invoices, etc.
-│       │   └── client/          # ClientDashboard, InvoiceView
-│       ├── context/             # AuthContext, SettingsContext
-│       ├── hooks/               # useAuth, useGallery, useImageUpload
-│       ├── types/index.ts       # Shared TypeScript interfaces
-│       └── utils/               # formatCurrency, dateHelpers
+├── src/                         # Backend source
+│   ├── app.ts                   # Express app (CORS, middleware, all routers)
+│   ├── server.ts                # Local dev entry (app.listen on port 8000)
+│   ├── config.ts                # Typed env config
+│   ├── database.ts              # MongoDB connection (cached for serverless)
+│   ├── middleware/
+│   │   ├── auth.ts              # requireAuth, requireAdmin, requireClient
+│   │   └── errorHandler.ts      # Global Express error handler
+│   ├── models/                  # Document factory functions (9 collections)
+│   │   ├── user.ts
+│   │   ├── project.ts
+│   │   ├── media.ts
+│   │   ├── portfolio.ts
+│   │   ├── pricing.ts
+│   │   ├── inquiry.ts
+│   │   ├── review.ts
+│   │   ├── invoice.ts
+│   │   └── settings.ts
+│   ├── services/                # Business logic
+│   │   ├── auth.ts              # bcryptjs hash/verify, JWT sign/verify
+│   │   ├── s3.ts                # AWS SDK v3 S3 operations + presigned URLs
+│   │   ├── imageProcessing.ts   # sharp: compress, thumbnail, watermark
+│   │   ├── email.ts             # SendGrid transactional emails
+│   │   └── stripe.ts            # Stripe invoice API (optional)
+│   ├── routes/
+│   │   ├── auth.ts              # POST /login, /refresh, /logout, /set-password, etc.
+│   │   ├── public.ts            # GET /portfolio, /pricing, /reviews; POST /inquiries
+│   │   ├── gallery.ts           # Token-based gallery routes
+│   │   ├── admin/
+│   │   │   ├── portfolio.ts
+│   │   │   ├── pricing.ts
+│   │   │   ├── inquiries.ts
+│   │   │   ├── reviews.ts
+│   │   │   ├── projects.ts
+│   │   │   ├── media.ts
+│   │   │   ├── clients.ts
+│   │   │   ├── invoices.ts
+│   │   │   ├── settings.ts
+│   │   │   └── dashboard.ts
+│   │   └── client/
+│   │       ├── projects.ts
+│   │       └── invoices.ts
+│   └── utils/
+│       ├── tokens.ts            # generateShareToken (crypto.randomBytes)
+│       └── zipStream.ts         # Streaming zip via archiver + S3 streams
 │
-└── scripts/                     # (Legacy Python scripts — superseded by backend/scripts/)
+├── scripts/
+│   └── seed_admin.ts            # Create initial admin user (npm run seed)
+│
+└── frontend/
+    ├── package.json
+    ├── vite.config.ts           # Dev proxy: /api → localhost:8000
+    └── src/
+        ├── main.tsx
+        ├── App.tsx              # All routes defined here
+        ├── api/client.ts        # Axios instance with auth interceptors
+        ├── components/          # Layout + reusable UI components
+        ├── pages/
+        │   ├── public/          # Home, Portfolio, Pricing, About, Reviews
+        │   ├── auth/            # Login, SetPassword, ForgotPassword
+        │   ├── gallery/         # SharedGallery, ImageView
+        │   ├── admin/           # Dashboard, Projects, Invoices, etc.
+        │   └── client/          # ClientDashboard, InvoiceView
+        ├── context/             # AuthContext, SettingsContext
+        ├── hooks/               # useAuth, useGallery, useImageUpload
+        ├── types/index.ts       # Shared TypeScript interfaces
+        └── utils/               # formatCurrency, dateHelpers
 ```
 
 ---
@@ -228,9 +228,9 @@ All variables are read from the environment at runtime. Copy `.env.example` to c
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `VITE_API_URL` | Backend API base URL | `https://yourdomain.com/api` |
+| `VITE_API_URL` | Backend API base URL — **do not set this in Vercel** | see note below |
 
-> **Note:** If `VITE_API_URL` is not set, the frontend defaults to `/api`. In local dev, Vite proxies `/api` to `localhost:8000` automatically — no env var needed.
+> **Note:** Leave `VITE_API_URL` unset in Vercel. The frontend defaults to relative `/api` paths, which Vercel rewrites to the same-domain serverless function — no CORS, no separate URL needed. Only set this variable when hosting the frontend and backend on different domains.
 
 ### Admin Seed Variables (for `npm run seed`)
 
@@ -264,14 +264,14 @@ docker run -d -p 27017:27017 --name mad-mongo mongo:7
 
 ```bash
 # From the repo root
-cp .env.example backend/.env
-# Edit backend/.env — set JWT_SECRET, AWS credentials, etc.
+cp .env.example .env
+# Edit .env — set MONGO_URI, JWT_SECRET, AWS credentials, etc.
 ```
 
 ### Step 3: Start the Backend
 
 ```bash
-cd backend
+# From the repo root
 npm install
 npm run dev        # starts on localhost:8000 with hot reload
 ```
@@ -279,7 +279,7 @@ npm run dev        # starts on localhost:8000 with hot reload
 ### Step 4: Seed the Admin Account
 
 ```bash
-cd backend
+# From the repo root
 npm run seed
 # Or with custom credentials:
 ADMIN_SEED_EMAIL=you@example.com ADMIN_SEED_PASSWORD=mypassword npm run seed
@@ -303,7 +303,7 @@ The entire application deploys to Vercel from a single GitHub repository. The `v
 
 ### How It Works
 
-- `/api/*` requests are routed to `backend/api/index.ts` — the Express app runs as a Node.js serverless function.
+- `/api/*` requests are routed to `api/index.ts` — the Express app runs as a Node.js serverless function.
 - All other requests serve the Vite-built static frontend from `frontend/dist`.
 
 ### Vercel Setup
@@ -333,7 +333,7 @@ Required variables to set in Vercel:
 - [ ] `FRONTEND_URL` set to the Vercel production domain (for CORS)
 - [ ] AWS S3 bucket created with proper IAM permissions; credentials set
 - [ ] SendGrid API key set (or leave unset for console stub)
-- [ ] Admin user seeded: `cd backend && npm run seed` (run locally pointing at production DB)
+- [ ] Admin user seeded: `npm run seed` from repo root (run locally pointing at production DB)
 
 ---
 
