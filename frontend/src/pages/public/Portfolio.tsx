@@ -6,30 +6,21 @@ import Lightbox from '../../components/ui/Lightbox';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 export default function Portfolio() {
-  const [items, setItems] = useState<PortfolioItem[]>([]);
+  const [allItems, setAllItems] = useState<PortfolioItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   useEffect(() => {
-    loadPortfolio();
-  }, [activeCategory]);
+    api.get('/portfolio', { params: { limit: '200' } })
+      .then(({ data }) => setAllItems(data.items))
+      .catch((err) => console.error('Failed to load portfolio', err))
+      .finally(() => setLoading(false));
+  }, []);
 
-  async function loadPortfolio() {
-    setLoading(true);
-    try {
-      const params: Record<string, string> = {};
-      if (activeCategory) params.category = activeCategory;
-      const { data } = await api.get('/portfolio', { params });
-      setItems(data.items);
-    } catch (err) {
-      console.error('Failed to load portfolio', err);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const categories = [...new Set(allItems.map((i) => i.category))].sort();
+  const items = activeCategory ? allItems.filter((i) => i.category === activeCategory) : allItems;
 
-  const categories = [...new Set(items.map((i) => i.category))];
   const gridImages = items.map((i) => ({
     id: i.id,
     thumbnailUrl: i.thumbnail_url || '',
