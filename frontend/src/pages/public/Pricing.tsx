@@ -12,6 +12,9 @@ export default function Pricing() {
   const [selectedPkg, setSelectedPkg] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', message: '', event_date: '', event_time: '', event_duration: '' });
   const [timeMode, setTimeMode] = useState<'preset' | 'specific'>('preset');
+  const [specificHour, setSpecificHour] = useState('12');
+  const [specificMinute, setSpecificMinute] = useState('00');
+  const [specificAmPm, setSpecificAmPm] = useState('PM');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -156,7 +159,7 @@ export default function Pricing() {
                     onChange={(e) => {
                       if (e.target.value === 'specific') {
                         setTimeMode('specific');
-                        setFormData({ ...formData, event_time: '' });
+                        setFormData({ ...formData, event_time: `12:00 PM` });
                       } else {
                         setTimeMode('preset');
                         setFormData({ ...formData, event_time: e.target.value });
@@ -171,12 +174,32 @@ export default function Pricing() {
                     <option value="specific">Specific time…</option>
                   </select>
                   {timeMode === 'specific' && (
-                    <input
-                      type="time"
-                      value={formData.event_time}
-                      onChange={(e) => setFormData({ ...formData, event_time: e.target.value })}
-                      className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
-                    />
+                    <div className="flex gap-2 mt-2">
+                      <select
+                        value={specificHour}
+                        onChange={(e) => { setSpecificHour(e.target.value); setFormData({ ...formData, event_time: `${e.target.value}:${specificMinute} ${specificAmPm}` }); }}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none bg-white"
+                      >
+                        {['1','2','3','4','5','6','7','8','9','10','11','12'].map((h) => (
+                          <option key={h} value={h}>{h}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={specificMinute}
+                        onChange={(e) => { setSpecificMinute(e.target.value); setFormData({ ...formData, event_time: `${specificHour}:${e.target.value} ${specificAmPm}` }); }}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none bg-white"
+                      >
+                        {['00','15','30','45'].map((m) => <option key={m} value={m}>:{m}</option>)}
+                      </select>
+                      <select
+                        value={specificAmPm}
+                        onChange={(e) => { setSpecificAmPm(e.target.value); setFormData({ ...formData, event_time: `${specificHour}:${specificMinute} ${e.target.value}` }); }}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none bg-white"
+                      >
+                        <option value="AM">AM</option>
+                        <option value="PM">PM</option>
+                      </select>
+                    </div>
                   )}
                 </div>
               </div>
