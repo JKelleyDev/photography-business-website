@@ -39,6 +39,7 @@ router.put('/:inquiryId', requireAdmin, async (req: AuthRequest, res: Response):
     if (!existing) {
       const inviteToken = createInviteToken();
       const clientDoc = newUser(inq.email, hashPassword(inviteToken), 'client', inq.name);
+      (clientDoc as Record<string, unknown>).phone = inq.phone ?? null;
       (clientDoc as Record<string, unknown>).invite_token = inviteToken;
       await db.collection('users').insertOne(clientDoc);
       // Invite email intentionally not sent — client portal accounts not yet enabled

@@ -11,6 +11,7 @@ export default function Pricing() {
   const [showForm, setShowForm] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', message: '', event_date: '', event_time: '', event_duration: '' });
+  const [timeMode, setTimeMode] = useState<'preset' | 'specific'>('preset');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -150,12 +151,33 @@ export default function Pricing() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Event Time</label>
-                  <input
-                    type="time"
-                    value={formData.event_time}
-                    onChange={(e) => setFormData({ ...formData, event_time: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
-                  />
+                  <select
+                    value={timeMode === 'specific' ? 'specific' : formData.event_time}
+                    onChange={(e) => {
+                      if (e.target.value === 'specific') {
+                        setTimeMode('specific');
+                        setFormData({ ...formData, event_time: '' });
+                      } else {
+                        setTimeMode('preset');
+                        setFormData({ ...formData, event_time: e.target.value });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none bg-white"
+                  >
+                    <option value="">Select a time…</option>
+                    <option value="Morning (8am – 12pm)">Morning (8am – 12pm)</option>
+                    <option value="Afternoon (12pm – 5pm)">Afternoon (12pm – 5pm)</option>
+                    <option value="Evening (5pm – 9pm)">Evening (5pm – 9pm)</option>
+                    <option value="specific">Specific time…</option>
+                  </select>
+                  {timeMode === 'specific' && (
+                    <input
+                      type="time"
+                      value={formData.event_time}
+                      onChange={(e) => setFormData({ ...formData, event_time: e.target.value })}
+                      className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                    />
+                  )}
                 </div>
               </div>
               <div>
