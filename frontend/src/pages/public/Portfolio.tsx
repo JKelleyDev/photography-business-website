@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/client';
 import { PortfolioItem } from '../../types';
-import ImageGrid from '../../components/ui/ImageGrid';
 import Lightbox from '../../components/ui/Lightbox';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
@@ -9,7 +8,7 @@ export default function Portfolio() {
   const [allItems, setAllItems] = useState<PortfolioItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string>('All');
 
   useEffect(() => {
     api.get('/portfolio', { params: { limit: '200' } })
@@ -18,68 +17,84 @@ export default function Portfolio() {
       .finally(() => setLoading(false));
   }, []);
 
-  const categories = [...new Set(allItems.map((i) => i.category))].sort();
-  const items = activeCategory ? allItems.filter((i) => i.category === activeCategory) : allItems;
+  const categories = ['All', ...new Set(allItems.map((i) => i.category))].filter(Boolean);
+  const items = activeCategory === 'All' ? allItems : allItems.filter((i) => i.category === activeCategory);
 
-  const gridImages = items.map((i) => ({
-    id: i.id,
-    thumbnailUrl: i.thumbnail_url || '',
-    alt: i.title,
-  }));
   const lightboxImages = items.map((i) => ({
     url: i.image_url || '',
     alt: i.title,
   }));
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12">
-      <div className="text-center mb-10">
-        <h1 className="text-4xl font-bold text-primary mb-3">Portfolio</h1>
-        <p className="text-muted max-w-xl mx-auto">A collection of our favorite work.</p>
-      </div>
+    <section className="py-24 md:py-32">
+      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
+          <div>
+            <p className="text-sm text-muted-foreground mb-2 tracking-widest uppercase">
+              Selected Work
+            </p>
+            <h1 className="text-3xl md:text-4xl font-serif font-light">Portfolio</h1>
+          </div>
 
-      {/* Category filter */}
-      {categories.length > 1 && (
-        <div className="flex flex-wrap justify-center gap-2 mb-8">
-          <button
-            onClick={() => setActiveCategory(null)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-              !activeCategory ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            All
-          </button>
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                activeCategory === cat ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+          {categories.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setActiveCategory(category)}
+                  className={`px-4 py-2 text-sm rounded-full transition-colors ${
+                    activeCategory === category
+                      ? 'bg-foreground text-background'
+                      : 'bg-secondary text-secondary-foreground hover:bg-border'
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      )}
 
-      {loading ? (
-        <LoadingSpinner />
-      ) : items.length === 0 ? (
-        <p className="text-center text-muted py-20">No portfolio items yet. Check back soon!</p>
-      ) : (
-        <ImageGrid images={gridImages} onImageClick={(idx) => setLightboxIndex(idx)} />
-      )}
+        {loading ? (
+          <LoadingSpinner />
+        ) : items.length === 0 ? (
+          <p className="text-center text-muted-foreground py-20">
+            No portfolio items yet. Check back soon.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {items.map((item, index) => (
+              <button
+                key={item.id}
+                onClick={() => setLightboxIndex(index)}
+                className="group relative aspect-[4/5] overflow-hidden rounded-lg bg-secondary text-left"
+              >
+                <img
+                  src={item.thumbnail_url || ''}
+                  alt={item.title}
+                  loading="lazy"
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors duration-300" />
+                <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                  <p className="text-sm text-background/80">{item.category}</p>
+                  <h3 className="text-lg font-medium text-background">{item.title}</h3>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
 
-      {lightboxIndex !== null && (
-        <Lightbox
-          images={lightboxImages}
-          currentIndex={lightboxIndex}
-          onClose={() => setLightboxIndex(null)}
-          onNext={() => setLightboxIndex(Math.min(lightboxIndex + 1, lightboxImages.length - 1))}
-          onPrev={() => setLightboxIndex(Math.max(lightboxIndex - 1, 0))}
-        />
-      )}
-    </div>
+        {lightboxIndex !== null && (
+          <Lightbox
+            images={lightboxImages}
+            currentIndex={lightboxIndex}
+            onClose={() => setLightboxIndex(null)}
+            onNext={() => setLightboxIndex(Math.min(lightboxIndex + 1, lightboxImages.length - 1))}
+            onPrev={() => setLightboxIndex(Math.max(lightboxIndex - 1, 0))}
+          />
+        )}
+      </div>
+    </section>
   );
 }

@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import Button from '../../components/ui/Button';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, isAdmin } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -17,8 +16,6 @@ export default function Login() {
     setLoading(true);
     try {
       await login(email, password);
-      // After login, re-read from context — but since state update is async,
-      // decode token directly for immediate redirect
       const token = localStorage.getItem('access_token');
       if (token) {
         const payload = JSON.parse(atob(token.split('.')[1]));
@@ -31,48 +28,69 @@ export default function Login() {
     }
   }
 
+  const inputClass =
+    'w-full px-4 py-2.5 bg-background border border-border rounded-lg focus:ring-2 focus:ring-stone/30 focus:border-stone outline-none text-sm';
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background text-foreground px-6 py-16">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary">
-            MAD <span className="text-accent">Photos</span>
-          </h1>
-          <p className="text-muted mt-2">Sign in to your account</p>
+        <div className="text-center mb-10">
+          <Link to="/" className="inline-block text-lg font-medium tracking-tight mb-6">
+            MAD <span className="text-muted-foreground">Photography</span>
+          </Link>
+          <p className="text-sm text-muted-foreground mb-2 tracking-widest uppercase">
+            Welcome Back
+          </p>
+          <h1 className="text-3xl md:text-4xl font-serif font-light">Sign in</h1>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+
+        <div className="p-8 rounded-lg border border-border bg-card">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
-              <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg">{error}</div>
+              <div className="border border-destructive/30 bg-destructive/5 text-destructive text-sm px-4 py-3 rounded-lg">
+                {error}
+              </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label className="block text-xs font-medium uppercase tracking-widest text-muted-foreground mb-2">
+                Email
+              </label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <label className="block text-xs font-medium uppercase tracking-widest text-muted-foreground mb-2">
+                Password
+              </label>
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                className={inputClass}
               />
             </div>
-            <Button type="submit" disabled={loading} className="w-full" size="lg">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full px-6 py-3 rounded-full bg-foreground text-background hover:bg-foreground/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               {loading ? 'Signing in...' : 'Sign In'}
-            </Button>
+            </button>
           </form>
-          <div className="mt-4 text-center flex items-center justify-center gap-4">
-            <a href="/" className="text-sm text-muted hover:text-primary">Back to Home</a>
-            <span className="text-gray-300">|</span>
-            <a href="/forgot-password" className="text-sm text-accent hover:underline">Forgot password?</a>
+          <div className="mt-6 flex items-center justify-center gap-4 text-sm">
+            <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
+              Back to Home
+            </Link>
+            <span className="text-border">|</span>
+            <Link to="/forgot-password" className="text-muted-foreground hover:text-foreground transition-colors">
+              Forgot password?
+            </Link>
           </div>
         </div>
       </div>
