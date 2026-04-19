@@ -82,7 +82,13 @@ export default function Pricing() {
                 ))}
               </ul>
               <button
-                onClick={() => { setSelectedPkg(pkg.id); setShowForm(true); }}
+                onClick={() => {
+                  setSelectedPkg(pkg.id);
+                  setShowForm(true);
+                  requestAnimationFrame(() => {
+                    document.getElementById('inquiry')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  });
+                }}
                 className={`w-full px-6 py-3 rounded-full text-sm font-medium transition-colors ${
                   pkg.is_custom
                     ? 'border border-border hover:bg-secondary'

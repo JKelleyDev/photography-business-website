@@ -1,6 +1,16 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import LoadingSpinner from './components/ui/LoadingSpinner';
+
+function ScrollToTop() {
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (hash) return;
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [pathname, hash]);
+  return null;
+}
 
 // Layouts
 import PublicLayout from './components/layout/PublicLayout';
@@ -55,6 +65,8 @@ function ProtectedRoute({ children, role }: { children: React.ReactNode; role: '
 
 export default function App() {
   return (
+    <>
+    <ScrollToTop />
     <Routes>
       {/* Public pages */}
       <Route element={<PublicLayout />}>
@@ -117,5 +129,6 @@ export default function App() {
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }
