@@ -92,7 +92,7 @@ export default function PublicLayout() {
         </div>
       </header>
 
-      <main className="flex-1 pt-52">
+      <main className="flex-1 pt-20">
         <Outlet />
       </main>
 
