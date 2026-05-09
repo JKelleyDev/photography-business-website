@@ -14,9 +14,8 @@ export default function ClientLayout() {
     <div className="min-h-screen bg-surface">
       <header className="sticky top-0 z-50 bg-white shadow-sm">
         <div className="max-w-5xl mx-auto px-4 flex items-center justify-between h-14">
-          <Link to="/client" className="flex items-center gap-2 text-lg font-bold text-primary">
+          <Link to="/client">
             <img src="/mad_photos.svg" alt="MAD Photos" className="h-35 w-auto" />
-            MAD <span className="text-accent">Photos</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link to="/client" className="text-sm text-gray-600 hover:text-accent">

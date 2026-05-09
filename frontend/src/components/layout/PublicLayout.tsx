@@ -21,14 +21,10 @@ export default function PublicLayout() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <nav className="flex items-center justify-between py-4">
-            <div className="flex items-center gap-3">
-              <Link to="/" className="flex items-center gap-2">
+            <div className="flex items-center">
+              <Link to="/">
                 <img src="/mad_photos.svg" alt="MAD Photos" className="h-40 w-auto" />
-                <span className="text-lg font-medium tracking-tight">MAD</span>
               </Link>
-              <span className="hidden md:block text-sm text-muted-foreground tracking-wide">
-                Photos
-              </span>
             </div>
 
             <div className="hidden md:flex items-center gap-8">
