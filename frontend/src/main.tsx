@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import { SettingsProvider } from './context/SettingsContext';
 import App from './App';
 import './styles/globals.css';
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,6 +24,7 @@ createRoot(document.getElementById('root')!).render(
         <AuthProvider>
           <SettingsProvider>
             <App />
+            <SpeedInsights/>
           </SettingsProvider>
         </AuthProvider>
       </QueryClientProvider>
