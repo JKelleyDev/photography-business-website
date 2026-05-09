@@ -31,7 +31,7 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-6 lg:px-8 py-24 md:py-32">
           <div className="max-w-3xl">
             <p className="text-sm text-muted-foreground mb-4 tracking-widest uppercase">
-              MAD Photography
+              MAD Photos
             </p>
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-light leading-tight tracking-tight text-balance">
               Capturing moments that tell your story

@@ -26,7 +26,7 @@ export default function PublicLayout() {
                 MAD
               </Link>
               <span className="hidden md:block text-sm text-muted-foreground tracking-wide">
-                Photography
+                Photos
               </span>
             </div>
 
@@ -104,7 +104,7 @@ export default function PublicLayout() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
             <div className="lg:col-span-1">
               <Link to="/" className="text-xl font-medium tracking-tight">
-                MAD Photography
+                MAD Photos
               </Link>
               <p className="mt-4 text-sm text-muted-foreground leading-relaxed max-w-xs">
                 Capturing moments that tell your story with artistry and authenticity.
@@ -183,7 +183,7 @@ export default function PublicLayout() {
 
           <div className="mt-16 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} MAD Photography. All rights reserved.
+              &copy; {new Date().getFullYear()} MAD Photos. All rights reserved.
             </p>
           </div>
         </div>

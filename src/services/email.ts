@@ -13,7 +13,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
     return true;
   }
   const { error } = await client.emails.send({
-    from: `MAD Photography <${config.FROM_EMAIL}>`,
+    from: `MAD Photos <${config.FROM_EMAIL}>`,
     to,
     subject,
     html,
@@ -41,7 +41,7 @@ export async function sendGalleryLinkEmail(
           <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;">
             <tr>
               <td style="background:#111111;padding:28px 40px;">
-                <p style="margin:0;color:#ffffff;font-size:20px;font-weight:600;letter-spacing:1px;">MAD PHOTOGRAPHY</p>
+                <p style="margin:0;color:#ffffff;font-size:20px;font-weight:600;letter-spacing:1px;">MAD PHOTOS</p>
               </td>
             </tr>
             <tr>
@@ -63,7 +63,7 @@ export async function sendGalleryLinkEmail(
             <tr>
               <td style="padding:24px 40px;border-top:1px solid #eeeeee;">
                 <p style="margin:0;color:#aaaaaa;font-size:12px;">
-                  You received this email because your photos were delivered by MAD Photography.
+                  You received this email because your photos were delivered by MAD Photos.
                 </p>
               </td>
             </tr>
@@ -94,7 +94,7 @@ export async function sendInvoiceEmail(
           <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;">
             <tr>
               <td style="background:#111111;padding:28px 40px;">
-                <p style="margin:0;color:#ffffff;font-size:20px;font-weight:600;letter-spacing:1px;">MAD PHOTOGRAPHY</p>
+                <p style="margin:0;color:#ffffff;font-size:20px;font-weight:600;letter-spacing:1px;">MAD PHOTOS</p>
               </td>
             </tr>
             <tr>
@@ -123,7 +123,7 @@ export async function sendInvoiceEmail(
             <tr>
               <td style="padding:24px 40px;border-top:1px solid #eeeeee;">
                 <p style="margin:0;color:#aaaaaa;font-size:12px;">
-                  You received this email from MAD Photography. If you have questions, reply to this email.
+                  You received this email from MAD Photos. If you have questions, reply to this email.
                 </p>
               </td>
             </tr>
@@ -147,7 +147,7 @@ export async function sendPasswordResetEmail(toEmail: string, resetToken: string
           <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;">
             <tr>
               <td style="background:#111111;padding:28px 40px;">
-                <p style="margin:0;color:#ffffff;font-size:20px;font-weight:600;letter-spacing:1px;">MAD PHOTOGRAPHY</p>
+                <p style="margin:0;color:#ffffff;font-size:20px;font-weight:600;letter-spacing:1px;">MAD PHOTOS</p>
               </td>
             </tr>
             <tr>
@@ -170,7 +170,7 @@ export async function sendPasswordResetEmail(toEmail: string, resetToken: string
     </body>
     </html>
   `;
-  return sendEmail(toEmail, 'MAD Photography — Password Reset', html);
+  return sendEmail(toEmail, 'MAD Photos — Password Reset', html);
 }
 
 // Kept for future use when client accounts are re-enabled
@@ -185,14 +185,14 @@ export async function sendInviteEmail(toEmail: string, name: string, inviteToken
           <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;">
             <tr>
               <td style="background:#111111;padding:28px 40px;">
-                <p style="margin:0;color:#ffffff;font-size:20px;font-weight:600;letter-spacing:1px;">MAD PHOTOGRAPHY</p>
+                <p style="margin:0;color:#ffffff;font-size:20px;font-weight:600;letter-spacing:1px;">MAD PHOTOS</p>
               </td>
             </tr>
             <tr>
               <td style="padding:40px;">
                 <h2 style="margin:0 0 16px;color:#111111;font-size:24px;">Welcome, ${name}!</h2>
                 <p style="margin:0 0 24px;color:#555555;font-size:16px;line-height:1.6;">
-                  Your MAD Photography account has been created. Click below to set your password and get started.
+                  Your MAD Photos account has been created. Click below to set your password and get started.
                 </p>
                 <a href="${url}" style="display:inline-block;background:#111111;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:6px;font-size:16px;font-weight:600;">
                   Set Your Password
@@ -208,5 +208,5 @@ export async function sendInviteEmail(toEmail: string, name: string, inviteToken
     </body>
     </html>
   `;
-  return sendEmail(toEmail, 'Welcome to MAD Photography — Set Your Password', html);
+  return sendEmail(toEmail, 'Welcome to MAD Photos — Set Your Password', html);
 }

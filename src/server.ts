@@ -4,7 +4,7 @@ import { getDb } from './database';
 
 async function start() {
   app.listen(config.PORT, () => {
-    console.log(`MAD Photography API running on http://localhost:${config.PORT}`);
+    console.log(`MAD Photos API running on http://localhost:${config.PORT}`);
   });
   // Attempt eager DB connection (non-blocking — requests handle lazy connect)
   getDb().catch((err) => console.warn('MongoDB not available at startup:', err.message));

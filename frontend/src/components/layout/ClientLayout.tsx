@@ -15,7 +15,7 @@ export default function ClientLayout() {
       <header className="sticky top-0 z-50 bg-white shadow-sm">
         <div className="max-w-5xl mx-auto px-4 flex items-center justify-between h-14">
           <Link to="/client" className="text-lg font-bold text-primary">
-            MAD <span className="text-accent">Photography</span>
+            MAD <span className="text-accent">Photos</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link to="/client" className="text-sm text-gray-600 hover:text-accent">

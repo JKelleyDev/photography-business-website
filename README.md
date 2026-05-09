@@ -1,4 +1,4 @@
-# MAD Photography
+# MAD Photos
 
 A full-service photography business web application for portfolio display, client gallery delivery, invoicing, and business management.
 
@@ -117,7 +117,7 @@ Admin clicks "Deliver Project"
 ## Project Structure
 
 ```
-mad-photography/
+mad-photos/
 ├── README.md
 ├── CLAUDE.md                    # AI assistant project spec & migration plan
 ├── vercel.json                  # Vercel routing: /api/* → serverless fn, /* → frontend
@@ -219,7 +219,7 @@ All variables are read from the environment at runtime. Copy `.env.example` to c
 | `STRIPE_SECRET_KEY` | Stripe API key (optional) | `sk_...` |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret | `whsec_...` |
 | `SENDGRID_API_KEY` | SendGrid API key for emails | If unset, emails log to console |
-| `FROM_EMAIL` | Sender email address | `hello@madphotography.com` |
+| `FROM_EMAIL` | Sender email address | `hello@madphotos.com` |
 | `FRONTEND_URL` | Frontend origin for CORS | `http://localhost:5173` |
 | `BACKEND_URL` | Backend's own URL (for links in emails) | `http://localhost:8000` |
 | `PORT` | Port for local dev server | `8000` |
@@ -236,7 +236,7 @@ All variables are read from the environment at runtime. Copy `.env.example` to c
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ADMIN_SEED_EMAIL` | Admin account email | `admin@madphotography.com` |
+| `ADMIN_SEED_EMAIL` | Admin account email | `admin@madphotos.com` |
 | `ADMIN_SEED_PASSWORD` | Admin account password | `changeme123` |
 | `ADMIN_SEED_NAME` | Admin display name | `Admin` |
 

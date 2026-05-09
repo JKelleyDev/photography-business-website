@@ -251,7 +251,7 @@ export default function SharedGallery() {
       {/* Header */}
       <div className="bg-primary text-white py-8 px-4">
         <div className="max-w-7xl mx-auto text-center">
-          <p className="text-accent text-sm font-medium mb-2">MAD Photography</p>
+          <p className="text-accent text-sm font-medium mb-2">MAD Photos</p>
           <h1 className="text-3xl font-bold mb-2">{gallery?.title}</h1>
           {gallery?.description && <p className="text-gray-300">{gallery.description}</p>}
           <p className="text-sm text-gray-400 mt-2">{media.length} photos</p>

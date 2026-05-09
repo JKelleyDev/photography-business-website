@@ -39,7 +39,7 @@ export default function AdminLayout() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <span className="font-bold">MAD Photography Admin</span>
+        <span className="font-bold">MAD Photos Admin</span>
         <button onClick={handleLogout} className="text-sm text-gray-300 hover:text-white">
           Logout
         </button>

@@ -7,7 +7,7 @@ import { newUser } from '../src/models/user';
 import { hashPassword } from '../src/services/auth';
 
 async function seedAdmin() {
-  const email = process.env.ADMIN_SEED_EMAIL || 'admin@madphotography.com';
+  const email = process.env.ADMIN_SEED_EMAIL || 'admin@madphotos.com';
   const password = process.env.ADMIN_SEED_PASSWORD || 'changeme123';
   const name = process.env.ADMIN_SEED_NAME || 'Admin';
 

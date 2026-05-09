@@ -26,7 +26,7 @@ export default function ForgotPassword() {
       <div className="w-full max-w-md">
         <div className="text-center mb-10">
           <Link to="/" className="inline-block text-lg font-medium tracking-tight mb-6">
-            MAD <span className="text-muted-foreground">Photography</span>
+            MAD <span className="text-muted-foreground">Photos</span>
           </Link>
           <p className="text-sm text-muted-foreground mb-2 tracking-widest uppercase">
             Account Recovery
