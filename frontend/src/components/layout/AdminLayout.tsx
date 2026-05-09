@@ -58,7 +58,8 @@ export default function AdminLayout() {
           }`}
         >
           <div className="hidden lg:flex items-center h-16 px-6 border-b border-white/10">
-            <Link to="/admin" className="text-xl font-bold">
+            <Link to="/admin" className="flex items-center gap-2 text-xl font-bold">
+              <img src="/mad_photos.svg" alt="MAD Photos" className="h-8 w-auto invert" />
               MAD <span className="text-accent">Admin</span>
             </Link>
           </div>
