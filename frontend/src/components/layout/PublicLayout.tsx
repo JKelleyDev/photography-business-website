@@ -23,7 +23,7 @@ export default function PublicLayout() {
           <nav className="flex items-center justify-between py-4">
             <div className="flex items-center gap-3">
               <Link to="/" className="flex items-center gap-2">
-                <img src="/mad_photos.svg" alt="MAD Photos" className="h-8 w-auto" />
+                <img src="/mad_photos.svg" alt="MAD Photos" className="h-40 w-auto" />
                 <span className="text-lg font-medium tracking-tight">MAD</span>
               </Link>
               <span className="hidden md:block text-sm text-muted-foreground tracking-wide">
