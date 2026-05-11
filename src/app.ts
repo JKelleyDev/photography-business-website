@@ -20,6 +20,7 @@ import adminClientsRouter from './routes/admin/clients';
 import adminInvoicesRouter from './routes/admin/invoices';
 import adminSettingsRouter from './routes/admin/settings';
 import adminDashboardRouter from './routes/admin/dashboard';
+import adminGalleryConsentsRouter from './routes/admin/galleryConsents';
 
 import clientProjectsRouter from './routes/client/projects';
 import clientInvoicesRouter from './routes/client/invoices';
@@ -61,6 +62,7 @@ app.use('/api/admin/clients', adminClientsRouter);
 app.use('/api/admin/invoices', adminInvoicesRouter);
 app.use('/api/admin/settings', adminSettingsRouter);
 app.use('/api/admin/dashboard', adminDashboardRouter);
+app.use('/api/admin/gallery-consents', adminGalleryConsentsRouter);
 
 // Client routes
 app.use('/api/client/projects', clientProjectsRouter);

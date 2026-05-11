@@ -8,6 +8,8 @@ import Lightbox from '../../components/ui/Lightbox';
 import Button from '../../components/ui/Button';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
+type ConsentStatus = 'agree' | 'withdrawn' | null;
+
 interface DownloadFile {
   url: string;
   filename: string;
@@ -36,6 +38,8 @@ export default function SharedGallery() {
   const [progress, setProgress] = useState<DownloadProgress>({ phase: 'idle', filesCompleted: 0, filesTotal: 0, bytesLoaded: 0, bytesTotal: 0 });
   const [downloadsLocked, setDownloadsLocked] = useState(false);
   const [invoiceToken, setInvoiceToken] = useState<string | null>(null);
+  const [consentStatus, setConsentStatus] = useState<ConsentStatus>(null);
+  const [consentLoading, setConsentLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -44,14 +48,16 @@ export default function SharedGallery() {
 
   async function loadGallery() {
     try {
-      const [galleryRes, mediaRes] = await Promise.all([
+      const [galleryRes, mediaRes, consentRes] = await Promise.all([
         api.get(`/gallery/${token}`),
         api.get(`/gallery/${token}/media`),
+        api.get(`/gallery/${token}/consent`),
       ]);
       setGallery(galleryRes.data);
       setDownloadsLocked(galleryRes.data.downloads_locked ?? false);
       setInvoiceToken(galleryRes.data.invoice_token ?? null);
       setMedia(mediaRes.data.media);
+      setConsentStatus(consentRes.data.status ?? null);
       const preSelected = new Set<string>(
         mediaRes.data.media.filter((m: Media) => m.is_selected).map((m: Media) => m.id)
       );
@@ -66,6 +72,18 @@ export default function SharedGallery() {
       }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleConsent(action: 'agree' | 'withdraw') {
+    setConsentLoading(true);
+    try {
+      const { data } = await api.post(`/gallery/${token}/consent/${action}`);
+      setConsentStatus(data.status);
+    } catch (err) {
+      console.error('Consent update failed', err);
+    } finally {
+      setConsentLoading(false);
     }
   }
 
@@ -273,6 +291,58 @@ export default function SharedGallery() {
           </div>
         </div>
       )}
+
+      {/* Gallery usage consent */}
+      <div className={`border-b px-4 py-4 ${consentStatus === 'agree' ? 'bg-green-50 border-green-200' : consentStatus === 'withdrawn' ? 'bg-gray-50 border-gray-200' : 'bg-blue-50 border-blue-200'}`}>
+        <div className="max-w-7xl mx-auto">
+          {consentStatus === null && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-blue-900">May we showcase your photos?</p>
+                <p className="text-xs text-blue-700 mt-0.5">
+                  We'd love to feature select photos from your session in our public gallery. You can withdraw this permission at any time.
+                </p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <Button size="sm" onClick={() => handleConsent('agree')} disabled={consentLoading}>
+                  {consentLoading ? 'Saving…' : 'Yes, I agree'}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => handleConsent('withdraw')} disabled={consentLoading}>
+                  No thanks
+                </Button>
+              </div>
+            </div>
+          )}
+          {consentStatus === 'agree' && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <p className="text-sm text-green-800">
+                <span className="font-semibold">Thank you!</span> You've agreed to allow us to showcase select photos from this session in our public gallery.
+              </p>
+              <button
+                onClick={() => handleConsent('withdraw')}
+                disabled={consentLoading}
+                className="text-xs text-green-700 underline hover:text-green-900 shrink-0 disabled:opacity-50"
+              >
+                {consentLoading ? 'Saving…' : 'Withdraw permission'}
+              </button>
+            </div>
+          )}
+          {consentStatus === 'withdrawn' && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <p className="text-sm text-gray-600">
+                Your photos have been removed from our public gallery. Thank you for letting us know.
+              </p>
+              <button
+                onClick={() => handleConsent('agree')}
+                disabled={consentLoading}
+                className="text-xs text-gray-500 underline hover:text-gray-800 shrink-0 disabled:opacity-50"
+              >
+                {consentLoading ? 'Saving…' : 'Change my mind'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Gallery */}
       <div className="max-w-7xl mx-auto px-4 py-8">

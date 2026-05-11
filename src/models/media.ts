@@ -27,5 +27,6 @@ export function newMedia(
     sort_order: sortOrder,
     uploaded_at: new Date(),
     is_selected: false,
+    in_public_gallery: false,
   };
 }

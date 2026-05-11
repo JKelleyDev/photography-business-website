@@ -131,6 +131,59 @@ router.get('/:token/download-all', async (req: Request, res: Response): Promise<
   await streamZipToResponse(keysAndNames, `${project.title}_all.zip`, res);
 });
 
+router.get('/:token/consent', async (req: Request, res: Response): Promise<void> => {
+  const project = await getValidProject(req.params.token, res);
+  if (!project) return;
+  const consent = (project.gallery_consent as Record<string, unknown> | undefined) ?? null;
+  res.json({
+    status: (consent?.status ?? null) as 'agree' | 'withdrawn' | null,
+    signed_at: consent?.signed_at ?? null,
+    withdrawn_at: consent?.withdrawn_at ?? null,
+  });
+});
+
+router.post('/:token/consent/agree', async (req: Request, res: Response): Promise<void> => {
+  const project = await getValidProject(req.params.token, res);
+  if (!project) return;
+  const db = await getDb();
+  const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0].trim() ?? req.socket.remoteAddress ?? null;
+  await db.collection('projects').updateOne(
+    { _id: project._id as ObjectId },
+    {
+      $set: {
+        'gallery_consent.status': 'agree',
+        'gallery_consent.signed_at': new Date(),
+        'gallery_consent.signed_ip': ip,
+        'gallery_consent.withdrawn_at': null,
+        updated_at: new Date(),
+      },
+    },
+  );
+  res.json({ status: 'agree' });
+});
+
+router.post('/:token/consent/withdraw', async (req: Request, res: Response): Promise<void> => {
+  const project = await getValidProject(req.params.token, res);
+  if (!project) return;
+  const db = await getDb();
+  const projectId = (project._id as ObjectId).toString();
+  await db.collection('projects').updateOne(
+    { _id: project._id as ObjectId },
+    {
+      $set: {
+        'gallery_consent.status': 'withdrawn',
+        'gallery_consent.withdrawn_at': new Date(),
+        updated_at: new Date(),
+      },
+    },
+  );
+  await db.collection('media').updateMany(
+    { project_id: projectId },
+    { $set: { in_public_gallery: false } },
+  );
+  res.json({ status: 'withdrawn' });
+});
+
 router.post('/:token/shutterfly-export', async (req: Request, res: Response): Promise<void> => {
   const project = await getValidProject(req.params.token, res);
   if (!project) return;

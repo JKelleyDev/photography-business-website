@@ -50,6 +50,7 @@ import ClientList from './pages/admin/ClientList';
 import InvoiceList from './pages/admin/InvoiceList';
 import InvoiceCreate from './pages/admin/InvoiceCreate';
 import SiteSettings from './pages/admin/SiteSettings';
+import GalleryConsents from './pages/admin/GalleryConsents';
 
 // Client pages
 import ClientDashboard from './pages/client/ClientDashboard';
@@ -110,6 +111,7 @@ export default function App() {
         <Route path="clients" element={<ClientList />} />
         <Route path="invoices" element={<InvoiceList />} />
         <Route path="invoices/new" element={<InvoiceCreate />} />
+        <Route path="gallery-consents" element={<GalleryConsents />} />
         <Route path="settings" element={<SiteSettings />} />
       </Route>
 

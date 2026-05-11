@@ -77,6 +77,44 @@ router.post('/reviews', async (req: Request, res: Response): Promise<void> => {
   res.status(201).json({ id: result.insertedId.toString(), message: 'Review submitted and pending approval' });
 });
 
+router.get('/consent-gallery', async (req: Request, res: Response): Promise<void> => {
+  const { page = '1', limit = '40' } = req.query as Record<string, string>;
+  const db = await getDb();
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  const approvedProjectIds = await db.collection('projects')
+    .find({ 'gallery_consent.status': 'agree' }, { projection: { _id: 1 } })
+    .toArray()
+    .then((docs) => docs.map((d) => (d._id as ObjectId).toString()));
+
+  if (!approvedProjectIds.length) {
+    res.json({ photos: [], total: 0, page: parseInt(page), limit: parseInt(limit) });
+    return;
+  }
+
+  const query = { in_public_gallery: true, project_id: { $in: approvedProjectIds } };
+  const total = await db.collection('media').countDocuments(query);
+  const mediaItems = await db.collection('media')
+    .find(query)
+    .sort({ uploaded_at: -1 })
+    .skip(skip)
+    .limit(parseInt(limit))
+    .toArray();
+
+  const mapped = await Promise.all(mediaItems.map(async (m) => ({
+    id: (m._id as ObjectId).toString(),
+    project_id: m.project_id,
+    thumbnail_url: await generatePresignedDownloadUrl(m.thumbnail_key),
+    compressed_url: await generatePresignedDownloadUrl(m.compressed_key),
+    filename: m.filename,
+    width: m.width,
+    height: m.height,
+    uploaded_at: m.uploaded_at,
+  })));
+
+  res.json({ photos: mapped, total, page: parseInt(page), limit: parseInt(limit) });
+});
+
 router.get('/settings', async (_req: Request, res: Response): Promise<void> => {
   const db = await getDb();
   const settings = await db.collection('site_settings').find().toArray();
