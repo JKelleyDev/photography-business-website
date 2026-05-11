@@ -16,9 +16,9 @@ interface ConsentProject {
 interface ConsentMedia {
   id: string;
   thumbnail_url: string;
-  compressed_url: string;
   filename: string;
-  in_public_gallery: boolean;
+  in_portfolio: boolean;
+  portfolio_item_id: string | null;
   sort_order: number;
 }
 
@@ -41,39 +41,45 @@ function ProjectPhotos({ projectId, onPublishCountChange }: { projectId: string;
 
   async function togglePhoto(photo: ConsentMedia) {
     setToggling((prev) => new Set(prev).add(photo.id));
-    const next = !photo.in_public_gallery;
+    const publish = !photo.in_portfolio;
     try {
-      await api.put(`/admin/gallery-consents/${projectId}/media/${photo.id}`, { in_public_gallery: next });
-      setMedia((prev) => prev.map((m) => m.id === photo.id ? { ...m, in_public_gallery: next } : m));
-      onPublishCountChange(next ? 1 : -1);
+      const { data } = await api.put(`/admin/gallery-consents/${projectId}/media/${photo.id}`, { publish });
+      setMedia((prev) => prev.map((m) => m.id === photo.id ? { ...m, in_portfolio: data.in_portfolio, portfolio_item_id: data.portfolio_item_id } : m));
+      onPublishCountChange(publish ? 1 : -1);
     } finally {
       setToggling((prev) => { const s = new Set(prev); s.delete(photo.id); return s; });
     }
   }
 
-  async function handleSelectAll(value: boolean) {
-    const ids = media.map((m) => m.id);
-    await api.put(`/admin/gallery-consents/${projectId}/media`, { media_ids: ids, in_public_gallery: value });
-    const delta = media.filter((m) => m.in_public_gallery !== value).length * (value ? 1 : -1);
-    setMedia((prev) => prev.map((m) => ({ ...m, in_public_gallery: value })));
+  async function handleSelectAll(publish: boolean) {
+    const unpublished = media.filter((m) => m.in_portfolio !== publish);
+    await Promise.all(
+      unpublished.map((m) =>
+        api.put(`/admin/gallery-consents/${projectId}/media/${m.id}`, { publish })
+      )
+    );
+    // Reload to get accurate portfolio_item_ids
+    const { data } = await api.get(`/admin/gallery-consents/${projectId}/media`);
+    const delta = unpublished.length * (publish ? 1 : -1);
+    setMedia(data.media);
     onPublishCountChange(delta);
   }
 
   if (loading) return <div className="py-6"><LoadingSpinner /></div>;
   if (!media.length) return <p className="text-sm text-gray-500 py-4">No photos in this project.</p>;
 
-  const publishedCount = media.filter((m) => m.in_public_gallery).length;
+  const publishedCount = media.filter((m) => m.in_portfolio).length;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <p className="text-sm text-gray-600">{publishedCount} of {media.length} photos in public gallery</p>
+        <p className="text-sm text-gray-600">{publishedCount} of {media.length} photos in portfolio</p>
         <div className="flex gap-2">
           <button
             onClick={() => handleSelectAll(true)}
             className="text-xs text-accent hover:underline"
           >
-            Publish all
+            Add all to portfolio
           </button>
           <span className="text-xs text-gray-300">|</span>
           <button
@@ -90,9 +96,9 @@ function ProjectPhotos({ projectId, onPublishCountChange }: { projectId: string;
             key={photo.id}
             onClick={() => togglePhoto(photo)}
             disabled={toggling.has(photo.id)}
-            title={photo.filename}
+            title={photo.in_portfolio ? `${photo.filename} — click to remove from portfolio` : `${photo.filename} — click to add to portfolio`}
             className={`relative aspect-square rounded overflow-hidden border-2 transition-all focus:outline-none ${
-              photo.in_public_gallery
+              photo.in_portfolio
                 ? 'border-accent ring-2 ring-accent/30'
                 : 'border-transparent hover:border-gray-300'
             } ${toggling.has(photo.id) ? 'opacity-50' : ''}`}
@@ -102,7 +108,7 @@ function ProjectPhotos({ projectId, onPublishCountChange }: { projectId: string;
               alt={photo.filename}
               className="w-full h-full object-cover"
             />
-            {photo.in_public_gallery && (
+            {photo.in_portfolio && (
               <div className="absolute inset-0 bg-accent/20 flex items-center justify-center">
                 <svg className="w-5 h-5 text-white drop-shadow" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />

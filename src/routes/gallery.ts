@@ -167,6 +167,20 @@ router.post('/:token/consent/withdraw', async (req: Request, res: Response): Pro
   if (!project) return;
   const db = await getDb();
   const projectId = (project._id as ObjectId).toString();
+
+  // Find all media that were published to the portfolio and remove those items
+  const publishedMedia = await db.collection('media')
+    .find({ project_id: projectId, portfolio_item_id: { $ne: null } })
+    .toArray();
+  if (publishedMedia.length) {
+    const portfolioIds = publishedMedia.map((m) => new ObjectId(m.portfolio_item_id as string));
+    await db.collection('portfolio_items').deleteMany({ _id: { $in: portfolioIds } });
+    await db.collection('media').updateMany(
+      { project_id: projectId },
+      { $set: { portfolio_item_id: null } },
+    );
+  }
+
   await db.collection('projects').updateOne(
     { _id: project._id as ObjectId },
     {
@@ -176,10 +190,6 @@ router.post('/:token/consent/withdraw', async (req: Request, res: Response): Pro
         updated_at: new Date(),
       },
     },
-  );
-  await db.collection('media').updateMany(
-    { project_id: projectId },
-    { $set: { in_public_gallery: false } },
   );
   res.json({ status: 'withdrawn' });
 });

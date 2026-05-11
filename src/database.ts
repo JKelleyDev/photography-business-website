@@ -36,7 +36,7 @@ async function createIndexes(db: Db): Promise<void> {
   );
 
   await db.collection('media').createIndex({ project_id: 1 });
-  await db.collection('media').createIndex({ in_public_gallery: 1, project_id: 1 });
+  await db.collection('media').createIndex({ portfolio_item_id: 1 });
   await db.collection('projects').createIndex({ 'gallery_consent.status': 1 });
   await db.collection('portfolio_items').createIndex({ sort_order: 1 });
   await db.collection('pricing_packages').createIndex({ sort_order: 1 });

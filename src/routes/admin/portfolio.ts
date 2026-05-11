@@ -106,8 +106,11 @@ router.delete('/:itemId', requireAdmin, async (req: AuthRequest, res: Response):
   const db = await getDb();
   const item = await db.collection('portfolio_items').findOne({ _id: new ObjectId(req.params.itemId) });
   if (!item) { res.status(404).json({ detail: 'Item not found' }); return; }
-  if (item.image_key) await deleteFileFromS3(item.image_key);
-  if (item.thumbnail_key) await deleteFileFromS3(item.thumbnail_key);
+  // Only delete S3 files for manually uploaded items — consent-sourced items share keys with media
+  if (!item.media_id) {
+    if (item.image_key) await deleteFileFromS3(item.image_key);
+    if (item.thumbnail_key) await deleteFileFromS3(item.thumbnail_key);
+  }
   await db.collection('portfolio_items').deleteOne({ _id: new ObjectId(req.params.itemId) });
   res.json({ message: 'Deleted' });
 });
