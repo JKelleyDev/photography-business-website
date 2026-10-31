@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import api from '../../api/client';
 import { PricingPackage } from '../../types';
 import { formatCurrency } from '../../utils/formatCurrency';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 export default function Pricing() {
   const [packages, setPackages] = useState<PricingPackage[]>([]);
@@ -40,7 +39,6 @@ export default function Pricing() {
     }
   }
 
-  if (loading) return <LoadingSpinner />;
 
   const inputClass =
     'w-full px-4 py-3 bg-paper border border-fixer/40 rounded-sm focus:border-ink outline-none text-base';
@@ -57,7 +55,19 @@ export default function Pricing() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12 mb-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12 mb-20" aria-busy={loading}>
+          {loading && Array.from({ length: 3 }, (_, i) => (
+            <div key={i} className="flex flex-col gap-3 border-t-2 border-tray pt-6" aria-hidden>
+              <div className="skeleton h-8 w-2/3" />
+              <div className="skeleton h-7 w-1/3" />
+              <div className="skeleton mt-3 h-4 w-full" />
+              <div className="skeleton h-4 w-5/6" />
+              <div className="skeleton mt-3 h-4 w-3/4" />
+              <div className="skeleton h-4 w-2/3" />
+              <div className="skeleton h-4 w-3/4" />
+              <div className="skeleton mt-4 h-12 w-full" />
+            </div>
+          ))}
           {packages.map((pkg) => (
             <div
               key={pkg.id}

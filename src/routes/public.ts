@@ -94,9 +94,7 @@ router.get('/invoice/:token', async (req: Request, res: Response): Promise<void>
   const db = await getDb();
   const inv = await db.collection('invoices').findOne({ token: req.params.token });
   if (!inv) { res.status(404).json({ detail: 'Invoice not found' }); return; }
-  const businessNameSetting = await db.collection('site_settings').findOne({ key: 'business_name' });
-  const businessName = businessNameSetting?.value ?? 'MAD Photos';
-  res.json({ amount_cents: inv.amount_cents, status: inv.status, due_date: inv.due_date, line_items: inv.line_items, paid_at: inv.paid_at ?? null, business_name: businessName });
+  res.json({ amount_cents: inv.amount_cents, status: inv.status, due_date: inv.due_date, line_items: inv.line_items, paid_at: inv.paid_at ?? null });
 });
 
 export default router;

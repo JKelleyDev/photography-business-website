@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import api from '../../api/client';
 import { Review } from '../../types';
 import StarRating from '../../components/ui/StarRating';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { formatDate } from '../../utils/dateHelpers';
 
 export default function Reviews() {
@@ -32,7 +31,6 @@ export default function Reviews() {
 
   const avgRating = reviews.length ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
 
-  if (loading) return <LoadingSpinner />;
 
   const inputClass =
     'w-full px-4 py-3 bg-paper border border-fixer/40 rounded-sm focus:border-ink outline-none text-base';
@@ -42,7 +40,9 @@ export default function Reviews() {
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <div className="mb-12">
           <h1 className="font-serif text-5xl md:text-7xl font-light tracking-[-0.02em] mb-6">Reviews</h1>
-          {reviews.length > 0 && (
+          {loading ? (
+            <div className="skeleton h-6 w-56" aria-hidden />
+          ) : reviews.length > 0 && (
             <div className="flex items-center gap-3">
               <StarRating rating={Math.round(avgRating)} readonly />
               <span className="text-sm text-muted-foreground">
@@ -52,9 +52,17 @@ export default function Reviews() {
           )}
         </div>
 
-        <div className="mb-16 divide-y divide-tray border-y border-tray">
-          {reviews.length === 0 ? (
-            <p className="text-center text-muted-foreground py-16">No reviews yet. Worked with us? Write the first one.</p>
+        <div className="mb-16 divide-y divide-tray border-y border-tray" aria-busy={loading}>
+          {loading ? (
+            Array.from({ length: 3 }, (_, i) => (
+              <div key={i} className="space-y-3 py-10" aria-hidden>
+                <div className="skeleton h-4 w-32" />
+                <div className="skeleton h-7 w-full" />
+                <div className="skeleton h-7 w-4/5" />
+              </div>
+            ))
+          ) : reviews.length === 0 ? (
+            <p className="text-muted-foreground py-16">No reviews yet. Worked with us? Write the first one.</p>
           ) : (
             reviews.map((review) => (
               <div key={review.id} className="py-10">
