@@ -241,10 +241,10 @@ export default function SharedGallery() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface px-4">
+      <div className="min-h-screen flex items-center justify-center bg-paper px-4">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-primary mb-3">Gallery Unavailable</h1>
-          <p className="text-muted">{error}</p>
+          <h1 className="font-serif text-4xl font-light text-ink mb-3">Gallery unavailable</h1>
+          <p className="text-fixer">{error}</p>
         </div>
       </div>
     );
@@ -265,14 +265,14 @@ export default function SharedGallery() {
   const pct = progress.bytesTotal > 0 ? Math.min(Math.round((progress.bytesLoaded / progress.bytesTotal) * 100), 100) : 0;
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-paper text-ink">
       {/* Header */}
-      <div className="bg-primary text-white py-8 px-4">
-        <div className="max-w-7xl mx-auto text-center">
-          <p className="text-accent text-sm font-medium mb-2">MAD Photos</p>
-          <h1 className="text-3xl font-bold mb-2">{gallery?.title}</h1>
-          {gallery?.description && <p className="text-gray-300">{gallery.description}</p>}
-          <p className="text-sm text-gray-400 mt-2">{media.length} photos</p>
+      <div className="border-b border-tray px-4 pt-6 pb-10 md:pt-8 md:pb-14">
+        <div className="max-w-7xl mx-auto">
+          <img src="/mad_photos.svg" alt="MAD Photos" className="h-9 w-auto mb-10" />
+          <h1 className="font-serif text-5xl md:text-7xl font-light tracking-[-0.02em] mb-3">{gallery?.title}</h1>
+          {gallery?.description && <p className="max-w-xl text-[17px] text-fixer">{gallery.description}</p>}
+          <p className="mt-3 font-mono text-xs tabular-nums text-fixer">{media.length} frames</p>
         </div>
       </div>
 
@@ -356,10 +356,10 @@ export default function SharedGallery() {
       </div>
 
       {/* Bottom toolbar */}
-      <div className="sticky bottom-0 bg-white border-t border-gray-200 shadow-lg px-4 py-3">
+      <div className="sticky bottom-0 z-30 bg-paper/95 backdrop-blur-sm border-t border-tray px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {downloading && progress.phase !== 'idle' && (
           <div className="max-w-7xl mx-auto mb-3">
-            <div className="flex items-center justify-between text-xs text-muted mb-1">
+            <div className="flex items-center justify-between text-xs text-fixer mb-1">
               <span>
                 {progress.phase === 'downloading'
                   ? `Downloading ${progress.filesCompleted} of ${progress.filesTotal} photos...`
@@ -374,42 +374,46 @@ export default function SharedGallery() {
                 </button>
               </div>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-tray h-1">
               {progress.phase === 'downloading' ? (
-                <div className="bg-accent h-2 rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
+                <div className="bg-ink h-1 rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
               ) : (
-                <div className="bg-accent h-2 rounded-full animate-pulse w-full" />
+                <div className="bg-ink h-1 rounded-full animate-pulse w-full" />
               )}
             </div>
           </div>
         )}
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span className="text-sm text-muted">
+          <span className="text-sm text-fixer">
             {selectedIds.size} of {media.length} selected
           </span>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
             <Button
-              variant="secondary"
-              size="sm"
+              variant="outline"
+              size="md"
+              className="min-h-11"
               onClick={handleDownloadAll}
               disabled={downloading || downloadsLocked}
             >
-              Download All
+              Download all
             </Button>
             <Button
-              size="sm"
+              variant="ink"
+              size="md"
+              className="min-h-11"
               onClick={handleDownloadSelected}
               disabled={downloading || selectedIds.size === 0 || downloadsLocked}
             >
-              Download Selected ({selectedIds.size})
+              Download selected ({selectedIds.size})
             </Button>
             <Button
-              variant="secondary"
-              size="sm"
+              variant="outline"
+              size="md"
+              className="col-span-2 min-h-11"
               onClick={handleExportForPrinting}
               disabled={downloading || selectedIds.size === 0 || downloadsLocked}
             >
-              Export for Printing
+              Export for printing
             </Button>
           </div>
         </div>

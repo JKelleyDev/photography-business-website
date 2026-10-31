@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useSettings } from '../../context/SettingsContext';
 import { formatPhone } from '../../utils/formatCurrency';
@@ -13,176 +13,171 @@ const navLinks = [
 
 export default function PublicLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const settings = useSettings();
+  const isHome = location.pathname === '/';
+  const overHero = isHome && !scrolled && !menuOpen;
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => setMenuOpen(false), [location.pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenuOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
+
+  const socials = [
+    { href: settings.instagram_url, label: 'Instagram' },
+    { href: settings.facebook_url, label: 'Facebook' },
+    { href: settings.tiktok_url, label: 'TikTok' },
+  ].filter((s) => s.href);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <nav className="flex items-center justify-between py-4">
-            <div className="flex items-center">
-              <Link to="/">
-                <img src="/mad_photos.svg" alt="MAD Photos" className="h-40 w-auto" />
-              </Link>
-            </div>
+    <div className="min-h-screen flex flex-col bg-paper text-ink">
+      <header
+        className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${
+          overHero ? 'bg-transparent text-paper' : 'bg-paper/95 backdrop-blur-sm text-ink border-b border-tray'
+        }`}
+      >
+        <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Link to="/" className="flex items-center" aria-label="MAD Photos, home">
+            <img
+              src="/mad_photos.svg"
+              alt=""
+              className={`h-10 w-auto transition ${overHero ? 'invert' : ''}`}
+            />
+          </Link>
 
-            <div className="hidden md:flex items-center gap-8">
-              {navLinks.slice(1).map((link) => (
+          <div className="hidden md:flex items-center gap-8">
+            {navLinks.slice(1).map((link) => {
+              const active = location.pathname === link.to;
+              return (
                 <Link
                   key={link.to}
                   to={link.to}
-                  className={`text-sm transition-colors hover:text-foreground ${
-                    location.pathname === link.to ? 'text-foreground' : 'text-muted-foreground'
+                  aria-current={active ? 'page' : undefined}
+                  className={`relative py-2 text-[15px] transition-opacity hover:opacity-100 ${
+                    active ? 'opacity-100' : 'opacity-70'
                   }`}
                 >
                   {link.label}
+                  {active && <span className="absolute -bottom-0.5 left-0 h-0.5 w-full bg-safelight" />}
                 </Link>
-              ))}
-              <Link
-                to="/login"
-                className="text-sm px-4 py-2 rounded-full bg-foreground text-background hover:bg-foreground/90 transition-colors"
-              >
-                Login
-              </Link>
-            </div>
-
-            <button
-              className="md:hidden p-2 text-foreground"
-              onClick={() => setMenuOpen(!menuOpen)}
-              aria-label="Toggle menu"
+              );
+            })}
+            <Link
+              to="/login"
+              className={`rounded-sm border px-4 py-2 text-[15px] transition-colors ${
+                overHero ? 'border-paper/60 hover:bg-paper hover:text-ink' : 'border-ink hover:bg-ink hover:text-paper'
+              }`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {menuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
-          </nav>
+              Client login
+            </Link>
+          </div>
 
-          {menuOpen && (
-            <div className="md:hidden pb-4 border-t border-border">
-              <div className="flex flex-col gap-1 pt-2">
-                {navLinks.map((link) => (
+          <button
+            className="md:hidden -mr-2 flex h-11 w-11 items-center justify-center"
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
+          >
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              {menuOpen ? <path d="M6 18L18 6M6 6l12 12" /> : <path d="M3 8h18M3 16h18" />}
+            </svg>
+          </button>
+        </nav>
+      </header>
+
+      {menuOpen && (
+        <div className="fixed inset-0 top-16 z-40 flex flex-col bg-paper px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6 md:hidden">
+          <ul className="flex flex-col">
+            {navLinks.map((link) => {
+              const active = location.pathname === link.to;
+              return (
+                <li key={link.to} className="border-b border-tray">
                   <Link
-                    key={link.to}
                     to={link.to}
-                    onClick={() => setMenuOpen(false)}
-                    className={`px-3 py-3 text-base transition-colors ${
-                      location.pathname === link.to
-                        ? 'text-foreground'
-                        : 'text-muted-foreground hover:text-foreground'
+                    aria-current={active ? 'page' : undefined}
+                    className={`flex items-center justify-between py-4 font-serif text-4xl font-light ${
+                      active ? 'text-ink' : 'text-fixer'
                     }`}
                   >
                     {link.label}
+                    {active && <span className="h-2 w-2 rounded-full bg-safelight" />}
                   </Link>
-                ))}
-                <Link
-                  to="/login"
-                  onClick={() => setMenuOpen(false)}
-                  className="mt-2 mx-3 text-center py-3 rounded-full bg-foreground text-background"
-                >
-                  Login
-                </Link>
-              </div>
-            </div>
-          )}
+                </li>
+              );
+            })}
+          </ul>
+          <Link to="/login" className="mt-auto rounded-sm bg-ink py-4 text-center text-paper">
+            Client login
+          </Link>
         </div>
-      </header>
+      )}
 
-      <main className="flex-1 pt-20">
+      <main className={`flex-1 ${isHome ? '' : 'pt-16'}`}>
         <Outlet />
       </main>
 
-      <footer className="border-t border-border py-16 md:py-20">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
-            <div className="lg:col-span-1">
-              <Link to="/" className="text-xl font-medium tracking-tight">
-                MAD Photos
-              </Link>
-              <p className="mt-4 text-sm text-muted-foreground leading-relaxed max-w-xs">
-                Capturing moments that tell your story with artistry and authenticity.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-medium uppercase tracking-widest text-muted-foreground mb-4">
-                Contact
-              </h3>
-              <div className="space-y-3 text-sm">
-                {settings.business_email && (
-                  <p>
-                    <a href={`mailto:${settings.business_email}`} className="hover:text-stone transition-colors">
-                      {settings.business_email}
-                    </a>
-                  </p>
-                )}
-                {settings.business_phone && (
-                  <p>
-                    <a href={`tel:${settings.business_phone}`} className="hover:text-stone transition-colors">
-                      {formatPhone(settings.business_phone)}
-                    </a>
-                  </p>
-                )}
-                {settings.business_address && (
-                  <p className="text-muted-foreground">{settings.business_address}</p>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-medium uppercase tracking-widest text-muted-foreground mb-4">
-                Navigation
-              </h3>
-              <ul className="space-y-3 text-sm">
-                {navLinks.map((link) => (
-                  <li key={link.to}>
-                    <Link
-                      to={link.to}
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-medium uppercase tracking-widest text-muted-foreground mb-4">
-                Social
-              </h3>
-              <div className="flex flex-col gap-2 text-sm">
-                {settings.instagram_url && (
-                  <a href={settings.instagram_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Instagram
-                  </a>
-                )}
-                {settings.facebook_url && (
-                  <a href={settings.facebook_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Facebook
-                  </a>
-                )}
-                {settings.tiktok_url && (
-                  <a href={settings.tiktok_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">
-                    TikTok
-                  </a>
-                )}
-                {!settings.instagram_url && !settings.facebook_url && !settings.tiktok_url && (
-                  <span className="text-muted-foreground">Coming soon</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-16 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} MAD Photos. All rights reserved.
+      <footer className="border-t border-tray">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-x-6 gap-y-10 px-4 py-14 sm:px-6 md:grid-cols-12 lg:px-8">
+          <div className="col-span-2 md:col-span-5">
+            <p className="font-serif text-3xl font-light leading-tight">
+              Have a date in mind?
             </p>
+            <Link to="/pricing" className="mt-4 inline-block border-b border-ink pb-0.5 hover:border-safelight">
+              Check availability
+            </Link>
           </div>
+
+          <div className="md:col-span-3 md:col-start-7">
+            <h3 className="mb-3 text-sm text-fixer">Contact</h3>
+            <div className="space-y-2 text-[15px]">
+              {settings.business_email && (
+                <a href={`mailto:${settings.business_email}`} className="block break-all hover:underline">
+                  {settings.business_email}
+                </a>
+              )}
+              {settings.business_phone && (
+                <a href={`tel:${settings.business_phone}`} className="block hover:underline">
+                  {formatPhone(settings.business_phone)}
+                </a>
+              )}
+              {settings.business_address && <p className="text-fixer">{settings.business_address}</p>}
+            </div>
+          </div>
+
+          <div className="md:col-span-3">
+            <h3 className="mb-3 text-sm text-fixer">Follow</h3>
+            <div className="space-y-2 text-[15px]">
+              {socials.length ? (
+                socials.map((s) => (
+                  <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" className="block hover:underline">
+                    {s.label}
+                  </a>
+                ))
+              ) : (
+                <span className="text-fixer">Coming soon</span>
+              )}
+            </div>
+          </div>
+
+          <p className="col-span-2 border-t border-tray pt-6 text-sm text-fixer md:col-span-12">
+            &copy; {new Date().getFullYear()} MAD Photos
+          </p>
         </div>
       </footer>
     </div>

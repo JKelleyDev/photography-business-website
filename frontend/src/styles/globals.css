@@ -8,20 +8,27 @@
   --color-surface: #f8f7f4;
   --color-muted: #6b7280;
 
-  /* Public-site neutral palette (V0 photography theme) */
-  --color-background: oklch(0.99 0 0);
-  --color-foreground: oklch(0.12 0 0);
-  --color-card: oklch(0.98 0 0);
-  --color-card-foreground: oklch(0.12 0 0);
-  --color-muted-foreground: oklch(0.45 0 0);
-  --color-border: oklch(0.90 0 0);
-  --color-secondary: oklch(0.96 0.005 60);
-  --color-secondary-foreground: oklch(0.25 0 0);
-  --color-stone: oklch(0.45 0.03 60);
-  --color-stone-foreground: oklch(0.99 0 0);
+  /* Public-site "darkroom" palette */
+  --color-paper: #EEF0ED;
+  --color-ink: #1E2422;
+  --color-fixer: #5F6D67;
+  --color-tray: #D5DAD6;
+  --color-safelight: #B3261E;
 
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-serif: 'Playfair Display', Georgia, serif;
+  /* Semantic aliases used across public pages */
+  --color-background: #EEF0ED;
+  --color-foreground: #1E2422;
+  --color-card: #E4E8E5;
+  --color-card-foreground: #1E2422;
+  --color-muted-foreground: #5F6D67;
+  --color-border: #D5DAD6;
+  --color-secondary: #E4E8E5;
+  --color-secondary-foreground: #1E2422;
+  --color-stone: #5F6D67;
+  --color-stone-foreground: #EEF0ED;
+
+  --font-sans: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Newsreader', Georgia, serif;
 }
 
 body {
@@ -29,4 +36,24 @@ body {
   -webkit-font-smoothing: antialiased;
   background-color: var(--color-background);
   color: var(--color-foreground);
+}
+
+h1, h2, h3 { text-wrap: balance; }
+
+:focus-visible {
+  outline: 2px solid var(--color-safelight);
+  outline-offset: 3px;
+}
+
+@keyframes develop {
+  from { filter: contrast(0.4) brightness(1.35) saturate(0); opacity: 0.6; }
+  to   { filter: none; opacity: 1; }
+}
+.develop { animation: develop 900ms cubic-bezier(.2,.7,.2,1) both; }
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

@@ -43,38 +43,35 @@ export default function Pricing() {
   if (loading) return <LoadingSpinner />;
 
   const inputClass =
-    'w-full px-4 py-2.5 bg-background border border-border rounded-lg focus:ring-2 focus:ring-stone/30 focus:border-stone outline-none text-sm';
+    'w-full px-4 py-3 bg-paper border border-fixer/40 rounded-sm focus:border-ink outline-none text-base';
 
   return (
-    <section className="py-24 md:py-32">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <p className="text-sm text-muted-foreground mb-2 tracking-widest uppercase">
+    <section className="py-12 md:py-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl mb-12">
+          <h1 className="font-serif text-5xl md:text-7xl font-light tracking-[-0.02em] mb-4">
             Pricing
-          </p>
-          <h1 className="text-3xl md:text-4xl font-serif font-light mb-4">
-            Packages & Sessions
           </h1>
           <p className="text-muted-foreground leading-relaxed">
-            Choose a package that fits your needs, or reach out for a custom quote.
+            Pick a package, or ask for a custom quote.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12 mb-20">
           {packages.map((pkg) => (
             <div
               key={pkg.id}
-              className="flex flex-col p-8 rounded-lg bg-card border border-border hover:border-stone/30 transition-colors"
+              className="flex flex-col pt-6 pb-2 border-t-2 border-ink"
             >
-              <h3 className="text-xl font-serif font-light mb-2">{pkg.name}</h3>
-              <p className="text-2xl font-serif font-light text-stone mb-6">
+              <h3 className="text-3xl font-serif font-light mb-1">{pkg.name}</h3>
+              <p className="text-2xl font-serif font-light text-ink mb-6">
                 {pkg.is_custom ? 'Custom Quote' : pkg.price_display || formatCurrency(pkg.price_cents)}
               </p>
               <p className="text-sm text-muted-foreground mb-6 leading-relaxed">{pkg.description}</p>
               <ul className="flex-1 space-y-3 mb-8">
                 {pkg.features.map((feature, idx) => (
                   <li key={idx} className="flex items-start gap-2 text-sm">
-                    <svg className="w-4 h-4 text-stone mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-ink mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                     <span className="text-foreground">{feature}</span>
@@ -89,42 +86,42 @@ export default function Pricing() {
                     document.getElementById('inquiry')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   });
                 }}
-                className={`w-full px-6 py-3 rounded-full text-sm font-medium transition-colors ${
+                className={`w-full px-6 py-3 rounded-sm text-sm font-medium transition-colors ${
                   pkg.is_custom
                     ? 'border border-border hover:bg-secondary'
-                    : 'bg-foreground text-background hover:bg-foreground/90'
+                    : 'bg-safelight text-white hover:bg-safelight/90'
                 }`}
               >
-                {pkg.is_custom ? 'Request Quote' : 'Inquire'}
+                {pkg.is_custom ? 'Request a quote' : 'Book this'}
               </button>
             </div>
           ))}
         </div>
 
-        <div id="inquiry" className="max-w-xl mx-auto">
+        <div id="inquiry" className="max-w-xl scroll-mt-24">
           {!showForm ? (
-            <div className="text-center">
+            <div>
               <button
                 onClick={() => setShowForm(true)}
-                className="inline-flex items-center justify-center px-10 py-3 rounded-full bg-foreground text-background hover:bg-foreground/90 transition-colors text-sm font-medium"
+                className="inline-flex items-center justify-center px-10 py-3 rounded-sm bg-foreground text-background hover:bg-foreground/90 transition-colors text-sm font-medium"
               >
-                Inquire About Custom Packages
+                Ask about a custom package
               </button>
             </div>
           ) : submitted ? (
-            <div className="text-center py-16 rounded-lg border border-border bg-card">
-              <svg className="w-12 h-12 text-stone mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="py-12 px-8 border border-tray bg-card">
+              <svg className="w-10 h-10 text-ink mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
               </svg>
-              <h3 className="text-xl font-serif font-light mb-2">Inquiry Sent</h3>
+              <h3 className="text-3xl font-serif font-light mb-1">Inquiry sent</h3>
               <p className="text-muted-foreground">We&apos;ll get back to you within 24 hours.</p>
             </div>
           ) : (
-            <div className="p-8 rounded-lg border border-border bg-card">
-              <h2 className="text-2xl font-serif font-light mb-8">Send an Inquiry</h2>
+            <div className="p-8 border border-tray bg-card">
+              <h2 className="text-2xl font-serif font-light mb-8">Send an inquiry</h2>
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                  <label className="block text-xs font-medium uppercase tracking-widest text-muted-foreground mb-2">Name *</label>
+                  <label className="block text-sm font-medium text-ink mb-1.5">Name *</label>
                   <input
                     type="text"
                     required
@@ -134,7 +131,7 @@ export default function Pricing() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium uppercase tracking-widest text-muted-foreground mb-2">Email *</label>
+                  <label className="block text-sm font-medium text-ink mb-1.5">Email *</label>
                   <input
                     type="email"
                     required
@@ -144,7 +141,7 @@ export default function Pricing() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium uppercase tracking-widest text-muted-foreground mb-2">Phone *</label>
+                  <label className="block text-sm font-medium text-ink mb-1.5">Phone *</label>
                   <input
                     type="tel"
                     required
@@ -165,7 +162,7 @@ export default function Pricing() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium uppercase tracking-widest text-muted-foreground mb-2">Event Date</label>
+                    <label className="block text-sm font-medium text-ink mb-1.5">Event Date</label>
                     <input
                       type="date"
                       value={formData.event_date}
@@ -174,7 +171,7 @@ export default function Pricing() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium uppercase tracking-widest text-muted-foreground mb-2">Event Time</label>
+                    <label className="block text-sm font-medium text-ink mb-1.5">Event Time</label>
                     <select
                       value={timeMode === 'specific' ? 'specific' : formData.event_time}
                       onChange={(e) => {
@@ -225,7 +222,7 @@ export default function Pricing() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium uppercase tracking-widest text-muted-foreground mb-2">Event Duration</label>
+                  <label className="block text-sm font-medium text-ink mb-1.5">Event Duration</label>
                   <input
                     type="text"
                     placeholder="2 hours"
@@ -235,7 +232,7 @@ export default function Pricing() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium uppercase tracking-widest text-muted-foreground mb-2">Message *</label>
+                  <label className="block text-sm font-medium text-ink mb-1.5">Message *</label>
                   <textarea
                     required
                     rows={4}
@@ -248,9 +245,9 @@ export default function Pricing() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full px-6 py-3 rounded-full bg-foreground text-background hover:bg-foreground/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-6 py-3 rounded-sm bg-foreground text-background hover:bg-foreground/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {submitting ? 'Sending...' : 'Send Inquiry'}
+                  {submitting ? 'Sending...' : 'Send inquiry'}
                 </button>
               </form>
             </div>

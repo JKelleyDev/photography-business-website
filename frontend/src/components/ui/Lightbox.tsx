@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 
 interface LightboxProps {
   images: { url: string; alt?: string }[];
@@ -28,11 +28,32 @@ export default function Lightbox({ images, currentIndex, onClose, onNext, onPrev
     };
   }, [handleKeyDown]);
 
+  const touchX = useRef<number | null>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    return () => prev?.focus();
+  }, []);
+
   const current = images[currentIndex];
   if (!current) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={current.alt || 'Image viewer'}
+      className="fixed inset-0 z-[60] bg-black flex items-center justify-center animate-[develop_250ms_ease-out]"
+      onTouchStart={(e) => (touchX.current = e.touches[0].clientX)}
+      onTouchEnd={(e) => {
+        if (touchX.current === null) return;
+        const dx = e.changedTouches[0].clientX - touchX.current;
+        if (dx < -50) onNext();
+        if (dx > 50) onPrev();
+        touchX.current = null;
+      }}
+    >
       {/* Top-right actions */}
       <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
         {onDownload && (
@@ -47,7 +68,9 @@ export default function Lightbox({ images, currentIndex, onClose, onNext, onPrev
           </button>
         )}
         <button
+          ref={closeRef}
           onClick={onClose}
+          aria-label="Close"
           className="text-white/70 hover:text-white p-2"
         >
           <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -57,7 +80,7 @@ export default function Lightbox({ images, currentIndex, onClose, onNext, onPrev
       </div>
 
       {/* Counter */}
-      <div className="absolute top-4 left-4 text-white/70 text-sm">
+      <div className="absolute top-5 left-4 font-mono text-xs tabular-nums text-white/60">
         {currentIndex + 1} / {images.length}
       </div>
 
@@ -65,7 +88,8 @@ export default function Lightbox({ images, currentIndex, onClose, onNext, onPrev
       {currentIndex > 0 && (
         <button
           onClick={onPrev}
-          className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-2"
+          aria-label="Previous"
+          className="absolute left-2 md:left-4 hidden sm:block top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-2"
         >
           <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -85,7 +109,8 @@ export default function Lightbox({ images, currentIndex, onClose, onNext, onPrev
       {currentIndex < images.length - 1 && (
         <button
           onClick={onNext}
-          className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-2"
+          aria-label="Next"
+          className="absolute right-2 md:right-4 hidden sm:block top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-2"
         >
           <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

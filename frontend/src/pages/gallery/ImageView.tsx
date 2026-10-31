@@ -22,7 +22,7 @@ export default function ImageView() {
   }, [token, mediaId]);
 
   if (loading) return <LoadingSpinner size="lg" />;
-  if (!media) return <div className="text-center py-20 text-muted">Image not found</div>;
+  if (!media) return <div className="text-center py-20 text-fixer">Image not found</div>;
 
   const currentIndex = allMedia.findIndex((m) => m.id === mediaId);
 
@@ -48,9 +48,9 @@ export default function ImageView() {
           Back to Gallery
         </button>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-400">{currentIndex + 1} / {allMedia.length}</span>
+          <span className="font-mono text-xs tabular-nums text-white/60">{currentIndex + 1} / {allMedia.length}</span>
           {!downloadsLocked && (
-            <button onClick={handleDownload} className="text-gray-300 hover:text-white" title="Download original">
+            <button onClick={handleDownload} className="text-gray-300 hover:text-white" title="Download original" aria-label="Download original">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
@@ -60,7 +60,7 @@ export default function ImageView() {
       </div>
       <div className="flex-1 flex items-center justify-center relative">
         {currentIndex > 0 && (
-          <button onClick={() => goTo(currentIndex - 1)} className="absolute left-4 text-white/70 hover:text-white">
+          <button onClick={() => goTo(currentIndex - 1)} aria-label="Previous" className="absolute left-4 hidden sm:block text-white/70 hover:text-white">
             <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
@@ -74,7 +74,7 @@ export default function ImageView() {
           className="max-h-[85vh] max-w-[90vw] object-contain"
         />
         {currentIndex < allMedia.length - 1 && (
-          <button onClick={() => goTo(currentIndex + 1)} className="absolute right-4 text-white/70 hover:text-white">
+          <button onClick={() => goTo(currentIndex + 1)} aria-label="Next" className="absolute right-4 hidden sm:block text-white/70 hover:text-white">
             <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
