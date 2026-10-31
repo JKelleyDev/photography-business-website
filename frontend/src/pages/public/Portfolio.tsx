@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../../api/client';
 import { PortfolioItem } from '../../types';
 import Lightbox from '../../components/ui/Lightbox';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import FadeImage from '../../components/ui/FadeImage';
 
 export default function Portfolio() {
   const [allItems, setAllItems] = useState<PortfolioItem[]>([]);
@@ -48,23 +48,26 @@ export default function Portfolio() {
         )}
       </div>
 
-      {loading ? (
-        <LoadingSpinner />
-      ) : items.length === 0 ? (
+      {!loading && items.length === 0 ? (
         <p className="py-20 text-fixer">Nothing in this category yet.</p>
       ) : (
-        <ol className="columns-2 gap-2 sm:gap-3 lg:columns-3">
-          {items.map((item, index) => (
-            <li key={item.id} className="mb-2 break-inside-avoid sm:mb-3">
-              <button onClick={() => setLightboxIndex(index)} className="group block w-full text-left"
-                aria-label={`Open ${item.title}`}>
-                <img src={item.thumbnail_url || ''} alt={item.title} loading="lazy" decoding="async"
-                  className="block w-full bg-tray transition-opacity group-hover:opacity-90" />
-                <span className="mt-1 flex justify-between gap-2 text-xs text-fixer">
-                  <span className="font-mono tabular-nums">{String(index + 1).padStart(2, '0')}</span>
-                  <span className="truncate">{item.title}</span>
-                </span>
-              </button>
+        <ol className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3" aria-busy={loading}>
+          {(loading ? Array.from({ length: 9 }, () => null) : items).map((item, index) => (
+            <li key={item?.id ?? index}>
+              {item ? (
+                <button onClick={() => setLightboxIndex(index)} className="group block w-full"
+                  aria-label={`Open frame ${index + 1}`}>
+                  <div className="skeleton aspect-[4/5] overflow-hidden">
+                    <FadeImage src={item.thumbnail_url || ''} alt={`${item.category} photo, frame ${index + 1}`}
+                      className="h-full w-full object-cover group-hover:opacity-90" />
+                  </div>
+                </button>
+              ) : (
+                <div className="skeleton aspect-[4/5]" />
+              )}
+              <span className="mt-1 block font-mono text-xs tabular-nums text-fixer">
+                {String(index + 1).padStart(2, '0')}
+              </span>
             </li>
           ))}
         </ol>

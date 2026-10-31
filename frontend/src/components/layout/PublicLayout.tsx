@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { useSettings } from '../../context/SettingsContext';
-import { formatPhone } from '../../utils/formatCurrency';
+import { SITE } from '../../content/site';
 
 const navLinks = [
   { to: '/', label: 'Home' },
@@ -15,7 +14,6 @@ export default function PublicLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
-  const settings = useSettings();
   const isHome = location.pathname === '/';
   const overHero = isHome && !scrolled && !menuOpen;
 
@@ -38,12 +36,6 @@ export default function PublicLayout() {
       window.removeEventListener('keydown', onKey);
     };
   }, [menuOpen]);
-
-  const socials = [
-    { href: settings.instagram_url, label: 'Instagram' },
-    { href: settings.facebook_url, label: 'Facebook' },
-    { href: settings.tiktok_url, label: 'TikTok' },
-  ].filter((s) => s.href);
 
   return (
     <div className="min-h-screen flex flex-col bg-paper text-ink">
@@ -143,35 +135,11 @@ export default function PublicLayout() {
             </Link>
           </div>
 
-          <div className="md:col-span-3 md:col-start-7">
+          <div className="col-span-2 md:col-span-4 md:col-start-9">
             <h3 className="mb-3 text-sm text-fixer">Contact</h3>
-            <div className="space-y-2 text-[15px]">
-              {settings.business_email && (
-                <a href={`mailto:${settings.business_email}`} className="block break-all hover:underline">
-                  {settings.business_email}
-                </a>
-              )}
-              {settings.business_phone && (
-                <a href={`tel:${settings.business_phone}`} className="block hover:underline">
-                  {formatPhone(settings.business_phone)}
-                </a>
-              )}
-              {settings.business_address && <p className="text-fixer">{settings.business_address}</p>}
-            </div>
-          </div>
-
-          <div className="md:col-span-3">
-            <h3 className="mb-3 text-sm text-fixer">Follow</h3>
-            <div className="space-y-2 text-[15px]">
-              {socials.length ? (
-                socials.map((s) => (
-                  <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" className="block hover:underline">
-                    {s.label}
-                  </a>
-                ))
-              ) : (
-                <span className="text-fixer">Coming soon</span>
-              )}
+            <div className="space-y-2 text-[17px]">
+              <a href={`mailto:${SITE.email}`} className="block break-all hover:underline">{SITE.email}</a>
+              <a href={SITE.phoneHref} className="block hover:underline">{SITE.phone}</a>
             </div>
           </div>
 

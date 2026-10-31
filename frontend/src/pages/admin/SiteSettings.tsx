@@ -10,14 +10,6 @@ interface Setting {
 
 const settingKeys = [
   { key: 'business_name', label: 'Business Name', type: 'text' },
-  { key: 'business_email', label: 'Email', type: 'email' },
-  { key: 'business_phone', label: 'Phone', type: 'tel' },
-  { key: 'business_address', label: 'Address', type: 'text' },
-  { key: 'instagram_url', label: 'Instagram URL', type: 'url' },
-  { key: 'facebook_url', label: 'Facebook URL', type: 'url' },
-  { key: 'tiktok_url', label: 'TikTok URL', type: 'url' },
-  { key: 'about_content', label: 'About Page Content', type: 'textarea' },
-  { key: 'hero_text', label: 'Homepage Hero Text', type: 'text' },
 ];
 
 const paymentKeys = [

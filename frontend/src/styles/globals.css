@@ -57,3 +57,19 @@ h1, h2, h3 { text-wrap: balance; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* Skeleton tile for photos still loading */
+.skeleton {
+  background: linear-gradient(100deg, var(--color-tray) 40%, #e3e7e4 50%, var(--color-tray) 60%) 0 0 / 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* Recent frames carousel: the list is rendered twice and slides by half its width */
+@keyframes filmstrip { to { transform: translateX(-50%); } }
+.filmstrip { animation: filmstrip var(--strip-duration, 60s) linear infinite; }
+.filmstrip-wrap:hover .filmstrip,
+.filmstrip-wrap:focus-within .filmstrip { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .filmstrip { animation: none !important; }
+}
