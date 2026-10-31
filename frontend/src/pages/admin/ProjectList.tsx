@@ -1,32 +1,25 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { ChevronRight, FolderOpen, Plus } from 'lucide-react';
 import api from '../../api/client';
 import { Project } from '../../types';
-import Button from '../../components/ui/Button';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { formatDate } from '../../utils/dateHelpers';
-
-const statusColors: Record<string, string> = {
-  active: 'bg-blue-100 text-blue-700',
-  delivered: 'bg-green-100 text-green-700',
-  archived: 'bg-gray-100 text-gray-700',
-};
+import {
+  Badge, EmptyState, List, ListSkeleton, PageHeader, Segmented, Select, STATUS_TONE, Toolbar, buttonClass, cap,
+} from '../../components/admin/ui';
 
 const STATUS_FILTERS = ['all', 'active', 'delivered', 'archived'] as const;
+type Filter = (typeof STATUS_FILTERS)[number];
 
 export default function ProjectList() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>('active');
+  const [statusFilter, setStatusFilter] = useState<Filter>('active');
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
 
-  useEffect(() => { load(); }, []);
-
-  async function load() {
-    const { data } = await api.get('/admin/projects');
-    setProjects(data.projects);
-    setLoading(false);
-  }
+  useEffect(() => {
+    api.get('/admin/projects').then(({ data }) => setProjects(data.projects)).finally(() => setLoading(false));
+  }, []);
 
   const filtered = projects
     .filter((p) => statusFilter === 'all' || p.status === statusFilter)
@@ -35,65 +28,43 @@ export default function ProjectList() {
       return sortDir === 'desc' ? -diff : diff;
     });
 
-  if (loading) return <LoadingSpinner />;
+  const newBtn = <Link to="/admin/projects/new" className={buttonClass()}><Plus /> New project</Link>;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-primary">Projects</h1>
-        <Link to="/admin/projects/new">
-          <Button>New Project</Button>
-        </Link>
-      </div>
+      <PageHeader title="Projects" description="Client shoots, their photos and delivery." actions={newBtn} />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-          {STATUS_FILTERS.map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-colors ${
-                statusFilter === s ? 'bg-white text-primary shadow-sm' : 'text-muted hover:text-primary'
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-        <select
-          value={sortDir}
-          onChange={(e) => setSortDir(e.target.value as 'desc' | 'asc')}
-          className="text-sm border rounded-lg px-3 py-1.5 bg-white outline-none focus:ring-2 focus:ring-accent"
-        >
+      <Toolbar>
+        <Segmented label="Filter by status" value={statusFilter} onChange={setStatusFilter} options={STATUS_FILTERS} />
+        <Select aria-label="Sort" value={sortDir} onChange={(e) => setSortDir(e.target.value as 'desc' | 'asc')} className="sm:w-40">
           <option value="desc">Newest first</option>
           <option value="asc">Oldest first</option>
-        </select>
-      </div>
+        </Select>
+      </Toolbar>
 
-      <div className="space-y-3">
-        {filtered.length === 0 ? (
-          <p className="text-muted text-center py-12">No projects found.</p>
-        ) : (
-          filtered.map((project) => (
-            <Link
-              key={project.id}
-              to={`/admin/projects/${project.id}`}
-              className="block bg-white border rounded-lg p-4 hover:shadow-sm transition-shadow"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-primary">{project.title}</h3>
-                  <p className="text-sm text-muted">{project.description || 'No description'}</p>
-                  <p className="text-xs text-muted mt-1">{formatDate(project.created_at)}</p>
-                </div>
-                <span className={`text-xs font-medium px-2 py-1 rounded-full ${statusColors[project.status]}`}>
-                  {project.status}
-                </span>
+      {loading ? <ListSkeleton /> : filtered.length === 0 ? (
+        <EmptyState icon={<FolderOpen />} title={statusFilter === 'all' ? 'No projects yet' : `No ${statusFilter} projects`}
+          action={statusFilter === 'all' || statusFilter === 'active' ? newBtn : undefined}>
+          {statusFilter === 'all' || statusFilter === 'active'
+            ? 'Create a project to upload a shoot and deliver it to your client.'
+            : 'Try another filter.'}
+        </EmptyState>
+      ) : (
+        <List>
+          {filtered.map((project) => (
+            <Link key={project.id} to={`/admin/projects/${project.id}`}
+              className="flex items-center gap-4 px-4 py-3.5 hover:bg-wash sm:px-5">
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{project.title}</p>
+                <p className="mt-0.5 truncate text-[13px] text-fixer">{project.description || 'No description'}</p>
               </div>
+              <span className="hidden w-28 shrink-0 text-[13px] tabular-nums text-fixer sm:block">{formatDate(project.created_at)}</span>
+              <Badge tone={STATUS_TONE[project.status]}>{cap(project.status)}</Badge>
+              <ChevronRight className="size-4 shrink-0 text-fixer" />
             </Link>
-          ))
-        )}
-      </div>
+          ))}
+        </List>
+      )}
     </div>
   );
 }

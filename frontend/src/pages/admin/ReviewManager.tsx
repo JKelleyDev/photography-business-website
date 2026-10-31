@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react';
+import { Check, MessageSquareQuote, Trash2, Undo2 } from 'lucide-react';
 import api from '../../api/client';
 import { Review } from '../../types';
 import StarRating from '../../components/ui/StarRating';
-import Button from '../../components/ui/Button';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { formatDate } from '../../utils/dateHelpers';
+import { Badge, Button, EmptyState, ListSkeleton, PageHeader, Segmented, Select, Toolbar } from '../../components/admin/ui';
 
-const APPROVAL_FILTERS = ['all', 'pending', 'approved'] as const;
+const APPROVAL_FILTERS = ['pending', 'approved', 'all'] as const;
+type Filter = (typeof APPROVAL_FILTERS)[number];
 
 export default function ReviewManager() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
-  const [approvalFilter, setApprovalFilter] = useState<string>('pending');
+  const [approvalFilter, setApprovalFilter] = useState<Filter>('pending');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'rating-high' | 'rating-low'>('newest');
 
   useEffect(() => { load(); }, []);
@@ -23,22 +24,20 @@ export default function ReviewManager() {
   }
 
   async function toggleApproval(review: Review) {
+    setReviews((prev) => prev.map((r) => (r.id === review.id ? { ...r, is_approved: !r.is_approved } : r)));
     await api.put(`/admin/reviews/${review.id}`, { is_approved: !review.is_approved });
     load();
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this review?')) return;
+    if (!confirm('Delete this review? This can’t be undone.')) return;
     await api.delete(`/admin/reviews/${id}`);
     load();
   }
 
+  const pendingCount = reviews.filter((r) => !r.is_approved).length;
   const filtered = reviews
-    .filter((r) => {
-      if (approvalFilter === 'pending') return !r.is_approved;
-      if (approvalFilter === 'approved') return r.is_approved;
-      return true;
-    })
+    .filter((r) => (approvalFilter === 'pending' ? !r.is_approved : approvalFilter === 'approved' ? r.is_approved : true))
     .sort((a, b) => {
       if (sortBy === 'rating-high') return b.rating - a.rating;
       if (sortBy === 'rating-low') return a.rating - b.rating;
@@ -46,67 +45,53 @@ export default function ReviewManager() {
       return sortBy === 'newest' ? -diff : diff;
     });
 
-  if (loading) return <LoadingSpinner />;
-
   return (
     <div>
-      <h1 className="text-2xl font-bold text-primary mb-6">Reviews</h1>
+      <PageHeader title="Reviews" description="Approved reviews appear on the public reviews page." />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-          {APPROVAL_FILTERS.map((f) => (
-            <button
-              key={f}
-              onClick={() => setApprovalFilter(f)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-colors ${
-                approvalFilter === f ? 'bg-white text-primary shadow-sm' : 'text-muted hover:text-primary'
-              }`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-          className="text-sm border rounded-lg px-3 py-1.5 bg-white outline-none focus:ring-2 focus:ring-accent"
-        >
+      <Toolbar>
+        <Segmented label="Filter reviews" value={approvalFilter} onChange={setApprovalFilter} options={APPROVAL_FILTERS} counts={{ pending: pendingCount }} />
+        <Select aria-label="Sort" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} className="sm:w-44">
           <option value="newest">Newest first</option>
           <option value="oldest">Oldest first</option>
           <option value="rating-high">Highest rating</option>
           <option value="rating-low">Lowest rating</option>
-        </select>
-      </div>
+        </Select>
+      </Toolbar>
 
-      <div className="space-y-4">
-        {filtered.length === 0 ? (
-          <p className="text-muted text-center py-12">No reviews found.</p>
-        ) : (
-          filtered.map((review) => (
-            <div key={review.id} className={`bg-white border rounded-lg p-4 ${!review.is_approved ? 'border-amber-200 bg-amber-50/30' : ''}`}>
-              <div className="flex items-start justify-between">
+      {loading ? <ListSkeleton rows={3} /> : filtered.length === 0 ? (
+        <EmptyState icon={<MessageSquareQuote />} title={approvalFilter === 'pending' ? 'No reviews waiting' : 'No reviews here'}>
+          {approvalFilter === 'pending' ? 'New reviews from the website land here for you to approve.' : 'Try another filter.'}
+        </EmptyState>
+      ) : (
+        <ul className="space-y-3">
+          {filtered.map((review) => (
+            <li key={review.id} className="rounded-lg border border-line bg-white">
+              <div className="flex items-start justify-between gap-3 px-4 pt-4 sm:px-5">
                 <div>
-                  <h3 className="font-semibold">{review.author_name}</h3>
-                  <p className="text-xs text-muted">{formatDate(review.created_at)}</p>
+                  <p className="font-semibold">{review.author_name}</p>
+                  <div className="mt-1 flex items-center gap-2 text-[13px] text-fixer">
+                    <StarRating rating={review.rating} readonly />
+                    <span>{formatDate(review.created_at)}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <StarRating rating={review.rating} readonly />
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${review.is_approved ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                    {review.is_approved ? 'Approved' : 'Pending'}
-                  </span>
-                </div>
+                <Badge tone={review.is_approved ? 'success' : 'warn'}>{review.is_approved ? 'Approved' : 'Waiting'}</Badge>
               </div>
-              <p className="text-sm text-gray-700 mt-3">{review.body}</p>
-              <div className="flex gap-2 mt-3">
-                <Button size="sm" variant={review.is_approved ? 'secondary' : 'primary'} onClick={() => toggleApproval(review)}>
-                  {review.is_approved ? 'Unapprove' : 'Approve'}
+              <p className="px-4 pt-3 text-sm leading-relaxed sm:px-5">{review.body}</p>
+              <div className="mt-4 flex gap-2 border-t border-line px-4 py-3 sm:px-5">
+                {review.is_approved ? (
+                  <Button variant="outline" size="sm" onClick={() => toggleApproval(review)}><Undo2 /> Unpublish</Button>
+                ) : (
+                  <Button size="sm" onClick={() => toggleApproval(review)}><Check /> Approve</Button>
+                )}
+                <Button variant="ghost" size="sm" className="ml-auto text-safelight hover:bg-red-50" onClick={() => handleDelete(review.id)}>
+                  <Trash2 /> Delete
                 </Button>
-                <Button size="sm" variant="danger" onClick={() => handleDelete(review.id)}>Delete</Button>
               </div>
-            </div>
-          ))
-        )}
-      </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

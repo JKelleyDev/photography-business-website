@@ -27,6 +27,10 @@
   --color-stone: #5F6D67;
   --color-stone-foreground: #EEF0ED;
 
+  /* Admin (shadcn-style) neutrals, tinted to the darkroom palette */
+  --color-line: #E2E5E3;
+  --color-wash: #F4F5F4;
+
   --font-sans: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
   --font-serif: 'Newsreader', Georgia, serif;
 }

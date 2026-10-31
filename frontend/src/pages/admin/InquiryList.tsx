@@ -1,35 +1,29 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Mail, Phone, CalendarDays, Clock, Timer, Package, FolderPlus, Inbox } from 'lucide-react';
 import api from '../../api/client';
 import { Inquiry, PricingPackage } from '../../types';
 import { formatDateTime } from '../../utils/dateHelpers';
 import { formatCurrency, formatPhone } from '../../utils/formatCurrency';
-import Button from '../../components/ui/Button';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import {
+  Badge, EmptyState, ListSkeleton, PageHeader, Segmented, Select, STATUS_TONE, Toolbar, buttonClass, cap, cn,
+} from '../../components/admin/ui';
 
-const statusColors: Record<string, string> = {
-  new: 'bg-blue-100 text-blue-700',
-  contacted: 'bg-yellow-100 text-yellow-700',
-  booked: 'bg-green-100 text-green-700',
-  closed: 'bg-gray-100 text-gray-700',
-};
-
-const STATUS_FILTERS = ['all', 'new', 'contacted', 'booked', 'closed'] as const;
+const STATUSES = ['new', 'contacted', 'booked', 'closed'] as const;
+const STATUS_FILTERS = ['all', ...STATUSES] as const;
+type Filter = (typeof STATUS_FILTERS)[number];
 
 export default function InquiryList() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [packages, setPackages] = useState<Record<string, PricingPackage>>({});
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<Filter>('all');
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
 
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const [inqRes, pkgRes] = await Promise.all([
-      api.get('/admin/inquiries'),
-      api.get('/admin/pricing'),
-    ]);
+    const [inqRes, pkgRes] = await Promise.all([api.get('/admin/inquiries'), api.get('/admin/pricing')]);
     setInquiries(inqRes.data.inquiries);
     const pkgMap: Record<string, PricingPackage> = {};
     for (const pkg of pkgRes.data.packages) pkgMap[pkg.id] = pkg;
@@ -37,11 +31,13 @@ export default function InquiryList() {
     setLoading(false);
   }
 
-  async function updateStatus(id: string, status: string) {
+  async function updateStatus(id: string, status: Inquiry['status']) {
+    setInquiries((prev) => prev.map((q) => (q.id === id ? { ...q, status } : q)));
     await api.put(`/admin/inquiries/${id}`, { status });
     load();
   }
 
+  const counts = Object.fromEntries(STATUSES.map((s) => [s, inquiries.filter((q) => q.status === s).length]));
   const filtered = inquiries
     .filter((inq) => statusFilter === 'all' || inq.status === statusFilter)
     .sort((a, b) => {
@@ -49,120 +45,85 @@ export default function InquiryList() {
       return sortDir === 'desc' ? -diff : diff;
     });
 
-  if (loading) return <LoadingSpinner />;
-
   return (
     <div>
-      <h1 className="text-2xl font-bold text-primary mb-6">Inquiries</h1>
+      <PageHeader title="Inquiries" description="Booking requests from the pricing page." />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-          {STATUS_FILTERS.map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-colors ${
-                statusFilter === s ? 'bg-white text-primary shadow-sm' : 'text-muted hover:text-primary'
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-        <select
-          value={sortDir}
-          onChange={(e) => setSortDir(e.target.value as 'desc' | 'asc')}
-          className="text-sm border rounded-lg px-3 py-1.5 bg-white outline-none focus:ring-2 focus:ring-accent"
-        >
+      <Toolbar>
+        <Segmented label="Filter by status" value={statusFilter} onChange={setStatusFilter} options={STATUS_FILTERS} counts={{ new: counts.new }} />
+        <Select aria-label="Sort" value={sortDir} onChange={(e) => setSortDir(e.target.value as 'desc' | 'asc')} className="sm:w-40">
           <option value="desc">Newest first</option>
           <option value="asc">Oldest first</option>
-        </select>
-      </div>
+        </Select>
+      </Toolbar>
 
-      <div className="space-y-4">
-        {filtered.length === 0 ? (
-          <p className="text-muted text-center py-12">No inquiries found.</p>
-        ) : (
-          filtered.map((inq) => {
+      {loading ? <ListSkeleton rows={3} /> : filtered.length === 0 ? (
+        <EmptyState icon={<Inbox />} title={statusFilter === 'all' ? 'No inquiries yet' : `No ${statusFilter} inquiries`}>
+          {statusFilter === 'all' ? "They'll appear here when someone sends the form on your pricing page." : 'Try another filter.'}
+        </EmptyState>
+      ) : (
+        <ul className="space-y-3">
+          {filtered.map((inq) => {
             const pkg = inq.package_id ? packages[inq.package_id] : null;
+            const meta = [
+              pkg && { icon: Package, text: `${pkg.name}${!pkg.is_custom ? ` (${pkg.price_display || formatCurrency(pkg.price_cents)})` : ''}` },
+              inq.event_date && { icon: CalendarDays, text: formatDateTime(inq.event_date) },
+              inq.event_time && { icon: Clock, text: inq.event_time },
+              inq.event_duration && { icon: Timer, text: inq.event_duration },
+            ].filter(Boolean) as { icon: typeof Package; text: string }[];
+
             return (
-              <div key={inq.id} className="bg-white border rounded-lg p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold text-lg">{inq.name}</h3>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted mt-1">
-                      <a href={`mailto:${inq.email}`} className="hover:text-accent">{inq.email}</a>
-                      {inq.phone && <a href={`tel:${inq.phone}`} className="hover:text-accent">{formatPhone(inq.phone)}</a>}
+              <li key={inq.id} className="rounded-lg border border-line bg-white">
+                <div className="flex items-start justify-between gap-3 px-4 pt-4 sm:px-5">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold">{inq.name}</h3>
+                    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-fixer">
+                      <a href={`mailto:${inq.email}`} className="inline-flex items-center gap-1.5 break-all hover:text-ink"><Mail className="size-3.5" />{inq.email}</a>
+                      {inq.phone && <a href={`tel:${inq.phone}`} className="inline-flex items-center gap-1.5 hover:text-ink"><Phone className="size-3.5" />{formatPhone(inq.phone)}</a>}
                     </div>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ${statusColors[inq.status]}`}>
-                    {inq.status}
-                  </span>
+                  <Badge tone={STATUS_TONE[inq.status]}>{cap(inq.status)}</Badge>
                 </div>
 
-                {(inq.event_date || inq.event_time || inq.event_duration || pkg) && (
-                  <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm mb-3">
-                    {pkg && (
-                      <div>
-                        <span className="text-muted">Package:</span>{' '}
-                        <span className="font-medium text-primary">{pkg.name}</span>
-                        {!pkg.is_custom && (
-                          <span className="text-muted ml-1">({pkg.price_display || formatCurrency(pkg.price_cents)})</span>
-                        )}
-                      </div>
-                    )}
-                    {inq.event_date && (
-                      <div>
-                        <span className="text-muted">Event Date:</span>{' '}
-                        <span className="font-medium">{formatDateTime(inq.event_date)}</span>
-                      </div>
-                    )}
-                    {inq.event_time && (
-                      <div>
-                        <span className="text-muted">Event Time:</span>{' '}
-                        <span className="font-medium">{inq.event_time}</span>
-                      </div>
-                    )}
-                    {inq.event_duration && (
-                      <div>
-                        <span className="text-muted">Duration:</span>{' '}
-                        <span className="font-medium">{inq.event_duration}</span>
-                      </div>
-                    )}
+                {meta.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2 px-4 sm:px-5">
+                    {meta.map((m) => (
+                      <span key={m.text} className="inline-flex items-center gap-1.5 rounded-md bg-wash px-2 py-1 text-[13px]">
+                        <m.icon className="size-3.5 text-fixer" />{m.text}
+                      </span>
+                    ))}
                   </div>
                 )}
 
-                <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 mb-3">
-                  {inq.message}
-                </div>
+                <p className="mx-4 mt-3 whitespace-pre-line text-sm leading-relaxed sm:mx-5">{inq.message}</p>
 
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-2">
-                    {['new', 'contacted', 'booked', 'closed'].map((s) => (
-                      <Button
-                        key={s}
-                        size="sm"
-                        variant={inq.status === s ? 'primary' : 'ghost'}
-                        onClick={() => updateStatus(inq.id, s)}
-                      >
-                        {s}
-                      </Button>
-                    ))}
+                <div className="mt-4 flex flex-col gap-3 border-t border-line px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                  <div className="flex items-center gap-2">
+                    <span className="hidden text-[13px] text-fixer sm:inline">Status</span>
+                    <div className="inline-flex rounded-md border border-line p-0.5" role="radiogroup" aria-label={`Status for ${inq.name}`}>
+                      {STATUSES.map((s) => (
+                        <button key={s} role="radio" aria-checked={inq.status === s} onClick={() => updateStatus(inq.id, s)}
+                          className={cn('h-8 rounded-[5px] px-2.5 text-[13px] font-medium transition-colors',
+                            inq.status === s ? 'bg-ink text-white' : 'text-fixer hover:bg-wash hover:text-ink')}>
+                          {cap(s)}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs text-fixer">Received {formatDateTime(inq.created_at)}</span>
                     {inq.status === 'booked' && (
-                      <Link to={`/admin/projects/new?inquiryId=${inq.id}`}>
-                        <Button size="sm" variant="ghost">Create Project</Button>
+                      <Link to={`/admin/projects/new?inquiryId=${inq.id}`} className={buttonClass('outline', 'sm')}>
+                        <FolderPlus /> Create project
                       </Link>
                     )}
-                    <p className="text-xs text-muted">{formatDateTime(inq.created_at)}</p>
                   </div>
                 </div>
-              </div>
+              </li>
             );
-          })
-        )}
-      </div>
+          })}
+        </ul>
+      )}
     </div>
   );
 }

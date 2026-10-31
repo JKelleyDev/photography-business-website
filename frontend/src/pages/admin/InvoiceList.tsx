@@ -1,23 +1,25 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Check, Copy, Plus, Receipt } from 'lucide-react';
 import api from '../../api/client';
 import { Invoice, User } from '../../types';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDate } from '../../utils/dateHelpers';
-import Button from '../../components/ui/Button';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import {
+  Badge, Button, EmptyState, ListSkeleton, PageHeader, Segmented, Select, STATUS_TONE, Toolbar, buttonClass, cap, cn,
+} from '../../components/admin/ui';
 
-const STATUS_FILTERS = ['all', 'draft', 'sent', 'paid', 'void'] as const;
+const STATUSES = ['draft', 'sent', 'paid', 'void'] as const;
+const STATUS_FILTERS = ['all', ...STATUSES] as const;
+type Filter = (typeof STATUS_FILTERS)[number];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-function getInvoiceUrgency(inv: Invoice): 'overdue' | 'due-soon' | null {
+function getInvoiceUrgency(inv: Invoice): 'overdue' | 'due soon' | null {
   if (inv.status === 'paid' || inv.status === 'void' || inv.status === 'draft') return null;
   const due = new Date(inv.due_date).getTime();
   const now = Date.now();
-  const threeDays = 3 * 24 * 60 * 60 * 1000;
   if (due < now) return 'overdue';
-  if (due - now <= threeDays) return 'due-soon';
+  if (due - now <= 3 * 864e5) return 'due soon';
   return null;
 }
 
@@ -26,18 +28,15 @@ export default function InvoiceList() {
   const [clients, setClients] = useState<Record<string, User>>({});
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [monthFilter, setMonthFilter] = useState<string>('all');
-  const [yearFilter, setYearFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<Filter>('all');
+  const [monthFilter, setMonthFilter] = useState('all');
+  const [yearFilter, setYearFilter] = useState('all');
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
 
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const [invRes, clientRes] = await Promise.all([
-      api.get('/admin/invoices'),
-      api.get('/admin/clients'),
-    ]);
+    const [invRes, clientRes] = await Promise.all([api.get('/admin/invoices'), api.get('/admin/clients')]);
     setInvoices(invRes.data.invoices);
     const clientMap: Record<string, User> = {};
     for (const c of clientRes.data.clients) clientMap[c.id] = c;
@@ -45,147 +44,96 @@ export default function InvoiceList() {
     setLoading(false);
   }
 
-  async function updateStatus(id: string, status: string) {
+  async function updateStatus(id: string, status: Invoice['status']) {
+    setInvoices((prev) => prev.map((i) => (i.id === id ? { ...i, status } : i)));
     await api.put(`/admin/invoices/${id}/status`, { status });
     load();
   }
 
   function copyInvoiceLink(inv: Invoice) {
-    const url = `${window.location.origin}/invoice/${inv.token}`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(`${window.location.origin}/invoice/${inv.token}`);
     setCopiedId(inv.id);
     setTimeout(() => setCopiedId(null), 2000);
   }
 
   const years = [...new Set(invoices.map((inv) => new Date(inv.created_at).getFullYear().toString()))].sort((a, b) => +b - +a);
-
   const filtered = invoices
     .filter((inv) => statusFilter === 'all' || inv.status === statusFilter)
-    .filter((inv) => {
-      if (yearFilter === 'all') return true;
-      return new Date(inv.created_at).getFullYear().toString() === yearFilter;
-    })
-    .filter((inv) => {
-      if (monthFilter === 'all') return true;
-      return new Date(inv.created_at).getMonth().toString() === monthFilter;
-    })
+    .filter((inv) => yearFilter === 'all' || new Date(inv.created_at).getFullYear().toString() === yearFilter)
+    .filter((inv) => monthFilter === 'all' || new Date(inv.created_at).getMonth().toString() === monthFilter)
     .sort((a, b) => {
       const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       return sortDir === 'desc' ? -diff : diff;
     });
 
-  if (loading) return <LoadingSpinner />;
+  const outstanding = invoices.filter((i) => i.status === 'sent').reduce((s, i) => s + i.amount_cents, 0);
+  const newBtn = <Link to="/admin/invoices/new" className={buttonClass()}><Plus /> New invoice</Link>;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-primary">Invoices</h1>
-        <Link to="/admin/invoices/new">
-          <Button>Create Invoice</Button>
-        </Link>
-      </div>
+      <PageHeader title="Invoices"
+        description={!loading && outstanding > 0 ? `${formatCurrency(outstanding)} waiting to be paid.` : 'Bills you’ve sent to clients.'}
+        actions={newBtn} />
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-          {STATUS_FILTERS.map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-colors ${
-                statusFilter === s ? 'bg-white text-primary shadow-sm' : 'text-muted hover:text-primary'
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-        <select
-          value={yearFilter}
-          onChange={(e) => { setYearFilter(e.target.value); setMonthFilter('all'); }}
-          className="text-sm border rounded-lg px-3 py-1.5 bg-white outline-none focus:ring-2 focus:ring-accent"
-        >
-          <option value="all">All years</option>
-          {years.map((y) => <option key={y} value={y}>{y}</option>)}
-        </select>
-        {yearFilter !== 'all' && (
-          <select
-            value={monthFilter}
-            onChange={(e) => setMonthFilter(e.target.value)}
-            className="text-sm border rounded-lg px-3 py-1.5 bg-white outline-none focus:ring-2 focus:ring-accent"
-          >
+      <Toolbar>
+        <Segmented label="Filter by status" value={statusFilter} onChange={setStatusFilter} options={STATUS_FILTERS} />
+        <div className="grid grid-cols-3 gap-2 sm:flex">
+          <Select aria-label="Year" value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setMonthFilter('all'); }} className="sm:w-32">
+            <option value="all">All years</option>
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+          </Select>
+          <Select aria-label="Month" value={monthFilter} disabled={yearFilter === 'all'} onChange={(e) => setMonthFilter(e.target.value)} className="sm:w-32">
             <option value="all">All months</option>
             {MONTHS.map((m, i) => <option key={i} value={i.toString()}>{m}</option>)}
-          </select>
-        )}
-        <select
-          value={sortDir}
-          onChange={(e) => setSortDir(e.target.value as 'desc' | 'asc')}
-          className="text-sm border rounded-lg px-3 py-1.5 bg-white outline-none focus:ring-2 focus:ring-accent"
-        >
-          <option value="desc">Newest first</option>
-          <option value="asc">Oldest first</option>
-        </select>
-      </div>
+          </Select>
+          <Select aria-label="Sort" value={sortDir} onChange={(e) => setSortDir(e.target.value as 'desc' | 'asc')} className="sm:w-36">
+            <option value="desc">Newest</option>
+            <option value="asc">Oldest</option>
+          </Select>
+        </div>
+      </Toolbar>
 
-      <div className="space-y-3">
-        {filtered.length === 0 ? (
-          <p className="text-muted text-center py-12">No invoices found.</p>
-        ) : (
-          filtered.map((inv) => {
+      {loading ? <ListSkeleton /> : filtered.length === 0 ? (
+        <EmptyState icon={<Receipt />} title={invoices.length ? 'No invoices match' : 'No invoices yet'} action={invoices.length ? undefined : newBtn}>
+          {invoices.length ? 'Try a different status or date.' : 'Create one here, or when you deliver a project.'}
+        </EmptyState>
+      ) : (
+        <ul className="space-y-3">
+          {filtered.map((inv) => {
             const client = clients[inv.client_id];
             const urgency = getInvoiceUrgency(inv);
-            const borderClass =
-              urgency === 'overdue' ? 'border-red-300 bg-red-50/40' :
-              urgency === 'due-soon' ? 'border-yellow-300 bg-yellow-50/40' :
-              'border-gray-200 bg-white';
-            const statusBadge =
-              urgency === 'overdue' ? 'bg-red-100 text-red-700' :
-              urgency === 'due-soon' ? 'bg-yellow-100 text-yellow-700' :
-              inv.status === 'paid' ? 'bg-green-100 text-green-700' :
-              inv.status === 'void' ? 'bg-gray-100 text-gray-500' :
-              inv.status === 'draft' ? 'bg-gray-100 text-gray-700' :
-              'bg-blue-100 text-blue-700';
-
+            const shown = urgency ?? inv.status;
             return (
-              <div key={inv.id} className={`border rounded-lg p-4 ${borderClass}`}>
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <p className="font-semibold">{formatCurrency(inv.amount_cents)}</p>
-                    {client && <p className="text-sm text-muted">{client.name} ({client.email})</p>}
-                    <p className={`text-sm ${urgency === 'overdue' ? 'text-red-600 font-medium' : urgency === 'due-soon' ? 'text-yellow-600 font-medium' : 'text-muted'}`}>
-                      Due: {formatDate(inv.due_date)}
-                      {urgency === 'overdue' && ' — Overdue'}
-                      {urgency === 'due-soon' && ' — Due Soon'}
+              <li key={inv.id} className={cn('rounded-lg border bg-white', urgency === 'overdue' ? 'border-red-200' : 'border-line')}>
+                <div className="flex items-start justify-between gap-3 px-4 pt-4 sm:px-5">
+                  <div className="min-w-0">
+                    <p className="text-lg font-semibold tabular-nums tracking-tight">{formatCurrency(inv.amount_cents)}</p>
+                    {client && <p className="truncate text-sm">{client.name} <span className="text-fixer">({client.email})</span></p>}
+                    <p className={cn('mt-0.5 text-[13px]', urgency === 'overdue' ? 'font-medium text-safelight' : 'text-fixer')}>
+                      Due {formatDate(inv.due_date)} — {inv.line_items.length} {inv.line_items.length === 1 ? 'item' : 'items'}
                     </p>
-                    <p className="text-xs text-muted">{inv.line_items.length} item(s)</p>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${statusBadge}`}>
-                    {urgency === 'overdue' ? 'Overdue' : urgency === 'due-soon' ? 'Due Soon' : inv.status}
-                  </span>
+                  <Badge tone={STATUS_TONE[shown]}>{cap(shown)}</Badge>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {['draft', 'sent', 'paid', 'void'].map((s) => (
-                    <Button
-                      key={s}
-                      size="sm"
-                      variant={inv.status === s ? 'primary' : 'ghost'}
-                      onClick={() => updateStatus(inv.id, s)}
-                    >
-                      {s}
-                    </Button>
-                  ))}
-                  <div className="border-l pl-2 ml-1 flex gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => copyInvoiceLink(inv)}>
-                      {copiedId === inv.id ? 'Copied!' : 'Copy Link'}
-                    </Button>
+                <div className="mt-4 flex flex-col gap-3 border-t border-line px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                  <div className="inline-flex self-start rounded-md border border-line p-0.5" role="radiogroup" aria-label="Invoice status">
+                    {STATUSES.map((s) => (
+                      <button key={s} role="radio" aria-checked={inv.status === s} onClick={() => updateStatus(inv.id, s)}
+                        className={cn('h-8 rounded-[5px] px-3 text-[13px] font-medium transition-colors',
+                          inv.status === s ? 'bg-ink text-white' : 'text-fixer hover:bg-wash hover:text-ink')}>
+                        {s === 'paid' ? 'Paid' : s === 'void' ? 'Void' : cap(s)}
+                      </button>
+                    ))}
                   </div>
+                  <Button variant="outline" size="sm" onClick={() => copyInvoiceLink(inv)}>
+                    {copiedId === inv.id ? <><Check /> Link copied</> : <><Copy /> Copy payment link</>}
+                  </Button>
                 </div>
-              </div>
+              </li>
             );
-          })
-        )}
-      </div>
+          })}
+        </ul>
+      )}
     </div>
   );
 }

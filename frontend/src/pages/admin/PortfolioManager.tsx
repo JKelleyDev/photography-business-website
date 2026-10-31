@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../../api/client';
 import { PortfolioItem } from '../../types';
-import Button from '../../components/ui/Button';
-import Modal from '../../components/ui/Modal';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { Eye, EyeOff, ImagePlus, Images, Pencil, Plus, Trash2, Upload } from 'lucide-react';
+import { Badge, Button, Dialog, EmptyState, Field, Input, PageHeader, Select, Skeleton, cn } from '../../components/admin/ui';
 
 const BASE_TAGS = ['Landscape', 'Portrait'];
 
@@ -22,7 +21,9 @@ function TagSelector({
   value,
   onChange,
   existingTags,
+  id,
 }: {
+  id?: string;
   value: string;
   onChange: (v: string) => void;
   existingTags: string[];
@@ -43,40 +44,31 @@ function TagSelector({
   if (addingNew) {
     return (
       <div className="flex gap-2">
-        <input
+        <Input
           ref={inputRef}
           autoFocus
           type="text"
           value={newTag}
           onChange={(e) => setNewTag(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitNew(); } if (e.key === 'Escape') { setAddingNew(false); setNewTag(''); } }}
-          placeholder="New tag name…"
-          className="flex-1 px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
+          placeholder="New category"
+          aria-label="New category name"
         />
-        <Button size="sm" onClick={commitNew} type="button">Add</Button>
-        <Button size="sm" variant="ghost" onClick={() => { setAddingNew(false); setNewTag(''); }} type="button">Cancel</Button>
+        <Button onClick={commitNew}>Add</Button>
+        <Button variant="ghost" onClick={() => { setAddingNew(false); setNewTag(''); }}>Cancel</Button>
       </div>
     );
   }
 
   return (
     <div className="flex gap-2">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="flex-1 px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent bg-white"
-      >
+      <Select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
         {allTags.map((t) => <option key={t} value={t}>{t}</option>)}
         {!allTags.includes(value) && value && <option value={value}>{value}</option>}
-      </select>
-      <button
-        type="button"
-        onClick={() => setAddingNew(true)}
-        title="Add new tag"
-        className="w-9 h-9 flex items-center justify-center border rounded-lg text-muted hover:text-accent hover:border-accent transition-colors text-lg leading-none"
-      >
-        +
-      </button>
+      </Select>
+      <Button variant="outline" size="icon" onClick={() => setAddingNew(true)} aria-label="Add a new category" title="Add a new category">
+        <Plus />
+      </Button>
     </div>
   );
 }
@@ -199,90 +191,81 @@ export default function PortfolioManager() {
   const allDone = uploadFiles.length > 0 && uploadFiles.every((f) => f.status === 'done' || f.status === 'error');
   const uploadableCount = uploadFiles.filter((f) => f.status === 'pending').length;
 
-  if (loading) return <LoadingSpinner />;
+  const uploadBtn = <Button onClick={() => setShowUpload(true)}><Upload /> Upload photos</Button>;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-primary">Portfolio</h1>
-        <Button onClick={() => setShowUpload(true)}>Upload Photos</Button>
-      </div>
+      <PageHeader title="Portfolio"
+        description={loading ? 'Photos on your public portfolio page.' : `${items.length} photos — ${items.filter((i) => !i.is_visible).length} hidden.`}
+        actions={uploadBtn} />
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {items.map((item) => (
-          <div key={item.id} className={`relative group rounded-lg overflow-hidden border ${!item.is_visible ? 'opacity-50' : ''}`}>
-            <img src={item.thumbnail_url || ''} alt={item.title} className="w-full aspect-square object-cover" />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors flex items-end">
-              <div className="w-full p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                <p className="text-white text-sm font-medium truncate">{item.title}</p>
-                <p className="text-white/70 text-xs mb-2">{item.category}</p>
-                <div className="flex gap-1.5 flex-wrap">
-                  <button onClick={() => openEdit(item)} className="text-xs text-white bg-white/20 hover:bg-white/30 px-2 py-1 rounded transition-colors">
-                    Edit
-                  </button>
-                  <button onClick={() => toggleVisibility(item)} className="text-xs text-white bg-white/20 hover:bg-white/30 px-2 py-1 rounded transition-colors">
-                    {item.is_visible ? 'Hide' : 'Show'}
-                  </button>
-                  <button onClick={() => handleDelete(item.id)} className="text-xs text-red-300 bg-white/20 hover:bg-white/30 px-2 py-1 rounded transition-colors">
-                    Delete
-                  </button>
-                </div>
+      {loading ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="aspect-square rounded-lg" />)}
+        </div>
+      ) : items.length === 0 ? (
+        <EmptyState icon={<Images />} title="Your portfolio is empty" action={uploadBtn}>
+          Upload photos here, or add them from a client gallery under Gallery consents.
+        </EmptyState>
+      ) : (
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {items.map((item) => (
+            <li key={item.id} className="overflow-hidden rounded-lg border border-line bg-white">
+              <div className="relative aspect-square bg-wash">
+                <img src={item.thumbnail_url || ''} alt={item.title} loading="lazy" decoding="async"
+                  className={cn('h-full w-full object-cover', !item.is_visible && 'opacity-40 grayscale')} />
+                {!item.is_visible && <Badge tone="neutral" className="absolute left-2 top-2">Hidden</Badge>}
               </div>
-            </div>
-          </div>
-        ))}
-      </div>
+              <div className="flex items-center gap-1 py-1.5 pl-3 pr-1">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-medium">{item.title}</p>
+                  <p className="truncate text-xs text-fixer">{item.category}</p>
+                </div>
+                <Button variant="ghost" size="icon" className="size-9" onClick={() => toggleVisibility(item)}
+                  aria-label={item.is_visible ? `Hide ${item.title}` : `Show ${item.title}`} title={item.is_visible ? 'Hide from website' : 'Show on website'}>
+                  {item.is_visible ? <Eye /> : <EyeOff />}
+                </Button>
+                <Button variant="ghost" size="icon" className="size-9" onClick={() => openEdit(item)} aria-label={`Edit ${item.title}`}><Pencil /></Button>
+                <Button variant="ghost" size="icon" className="size-9 text-safelight hover:bg-red-50" onClick={() => handleDelete(item.id)} aria-label={`Delete ${item.title}`}><Trash2 /></Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
 
-      {/* Upload Modal */}
-      <Modal open={showUpload} onClose={closeUpload} title="Upload Portfolio Photos">
+      <Dialog open={showUpload} onClose={closeUpload} title="Upload photos" description="JPEG or PNG. HEIC files from iPhone need converting first.">
         <div className="space-y-4">
           {uploadFiles.length === 0 ? (
-            <div>
-              <label className="block w-full border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-accent transition-colors">
-                <svg className="w-8 h-8 text-muted mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <p className="text-sm text-muted">Click to select photos</p>
-                <p className="text-xs text-muted mt-1">JPEG, PNG — multiple files supported</p>
-                <input type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} />
-              </label>
-            </div>
+            <label className="flex cursor-pointer flex-col items-center rounded-lg border border-dashed border-line bg-wash/50 px-6 py-10 text-center hover:bg-wash">
+              <ImagePlus className="mb-2 size-7 text-fixer" strokeWidth={1.5} />
+              <span className="text-sm font-medium">Choose photos</span>
+              <span className="mt-1 text-[13px] text-fixer">You can pick several at once.</span>
+              <input type="file" accept="image/*" multiple className="sr-only" onChange={handleFileSelect} />
+            </label>
           ) : (
             <>
-              <div>
-                <label className="block text-sm font-medium mb-1">Category for all photos</label>
-                <TagSelector value={batchCategory} onChange={setBatchCategory} existingTags={existingTags} />
-              </div>
-
-              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              <Field label="Category for these photos">
+                {(id) => <TagSelector id={id} value={batchCategory} onChange={setBatchCategory} existingTags={existingTags} />}
+              </Field>
+              <ul className="max-h-64 space-y-2 overflow-y-auto pr-1">
                 {uploadFiles.map((uf, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${
-                      uf.status === 'done' ? 'bg-green-500' :
-                      uf.status === 'error' ? 'bg-red-500' :
-                      uf.status === 'uploading' ? 'bg-blue-500 animate-pulse' :
-                      'bg-gray-300'
-                    }`} />
-                    <input
-                      type="text"
-                      value={uf.title}
-                      onChange={(e) => setUploadFiles((prev) => prev.map((f, i) => i === idx ? { ...f, title: e.target.value } : f))}
-                      disabled={uf.status !== 'pending'}
-                      className="flex-1 px-2 py-1.5 border rounded text-sm outline-none focus:ring-2 focus:ring-accent disabled:bg-gray-50 disabled:text-muted"
-                    />
-                    <span className="text-xs w-20 text-right shrink-0" title={isHeic(uf.file) ? 'HEIC format not supported — convert to JPEG first' : undefined}>
-                      {uf.status === 'done' ? <span className="text-green-600">✓ Done</span> :
-                       uf.status === 'error' ? <span className="text-red-500" title={isHeic(uf.file) ? 'HEIC not supported' : (uf.errorMsg || 'Upload failed')}>{isHeic(uf.file) ? '✗ HEIC' : '✗ Error'}</span> :
-                       uf.status === 'uploading' ? <span className="text-blue-500">Uploading</span> :
-                       <span className="text-muted">Pending</span>}
+                  <li key={idx} className="flex items-center gap-2">
+                    <span className={cn('size-2 shrink-0 rounded-full',
+                      uf.status === 'done' ? 'bg-emerald-500' : uf.status === 'error' ? 'bg-safelight' : uf.status === 'uploading' ? 'animate-pulse bg-sky-500' : 'bg-line')} />
+                    <Input aria-label="Photo title" value={uf.title} disabled={uf.status !== 'pending'} className="h-9"
+                      onChange={(e) => setUploadFiles((prev) => prev.map((f, i) => (i === idx ? { ...f, title: e.target.value } : f)))} />
+                    <span className="w-20 shrink-0 text-right text-xs" title={uf.status === 'error' ? (isHeic(uf.file) ? 'HEIC isn’t supported. Convert to JPEG first.' : uf.errorMsg || 'Upload failed') : undefined}>
+                      {uf.status === 'done' ? <span className="text-emerald-700">Uploaded</span>
+                        : uf.status === 'error' ? <span className="text-safelight">{isHeic(uf.file) ? 'HEIC' : 'Failed'}</span>
+                        : uf.status === 'uploading' ? <span className="text-sky-700">Uploading</span>
+                        : <span className="text-fixer">Ready</span>}
                     </span>
-                  </div>
+                  </li>
                 ))}
-              </div>
-
+              </ul>
               {!allDone ? (
                 <Button onClick={handleBatchUpload} disabled={uploading || uploadableCount === 0} className="w-full">
-                  {uploading ? `Uploading ${uploadFiles.filter(f => f.status === 'done').length} / ${uploadableCount}…` : `Upload ${uploadableCount} photo${uploadableCount !== 1 ? 's' : ''}`}
+                  {uploading ? `Uploading ${uploadFiles.filter((f) => f.status === 'done').length} of ${uploadableCount}…` : `Upload ${uploadableCount} photo${uploadableCount !== 1 ? 's' : ''}`}
                 </Button>
               ) : (
                 <Button onClick={closeUpload} className="w-full">Done</Button>
@@ -290,29 +273,18 @@ export default function PortfolioManager() {
             </>
           )}
         </div>
-      </Modal>
+      </Dialog>
 
-      {/* Edit Modal */}
-      <Modal open={!!editItem} onClose={() => setEditItem(null)} title="Edit Portfolio Item">
+      <Dialog open={!!editItem} onClose={() => setEditItem(null)} title="Edit photo">
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Title</label>
-            <input
-              type="text"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent"
-            />
+          <Field label="Title">{(id) => <Input id={id} value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />}</Field>
+          <Field label="Category">{(id) => <TagSelector id={id} value={editCategory} onChange={setEditCategory} existingTags={existingTags} />}</Field>
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={() => setEditItem(null)}>Cancel</Button>
+            <Button onClick={handleEditSave} disabled={editSaving}>{editSaving ? 'Saving…' : 'Save changes'}</Button>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Category</label>
-            <TagSelector value={editCategory} onChange={setEditCategory} existingTags={existingTags} />
-          </div>
-          <Button onClick={handleEditSave} disabled={editSaving} className="w-full">
-            {editSaving ? 'Saving…' : 'Save Changes'}
-          </Button>
         </div>
-      </Modal>
+      </Dialog>
     </div>
   );
 }

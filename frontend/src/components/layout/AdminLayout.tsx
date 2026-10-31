@@ -1,107 +1,213 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import {
+  LayoutDashboard, Inbox, FolderOpen, Users, Receipt, ShieldCheck,
+  Images, Tag, Star, Settings, LogOut, Menu, ExternalLink, type LucideIcon,
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../api/client';
+import { cn } from '../admin/ui';
 
-const sidebarLinks = [
-  { to: '/admin', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-  { to: '/admin/portfolio', label: 'Portfolio', icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
-  { to: '/admin/pricing', label: 'Pricing', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
-  { to: '/admin/inquiries', label: 'Inquiries', icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
-  { to: '/admin/reviews', label: 'Reviews', icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z' },
-  { to: '/admin/projects', label: 'Projects', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
-  { to: '/admin/clients', label: 'Clients', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
-  { to: '/admin/invoices', label: 'Invoices', icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z' },
-  { to: '/admin/gallery-consents', label: 'Gallery Consents', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
-  { to: '/admin/settings', label: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' },
+interface NavItem { to: string; label: string; icon: LucideIcon; badge?: 'inquiries' | 'reviews' }
+
+const groups: { label: string; items: NavItem[] }[] = [
+  {
+    label: 'Work',
+    items: [
+      { to: '/admin', label: 'Overview', icon: LayoutDashboard },
+      { to: '/admin/inquiries', label: 'Inquiries', icon: Inbox, badge: 'inquiries' },
+      { to: '/admin/projects', label: 'Projects', icon: FolderOpen },
+      { to: '/admin/clients', label: 'Clients', icon: Users },
+      { to: '/admin/invoices', label: 'Invoices', icon: Receipt },
+      { to: '/admin/gallery-consents', label: 'Gallery consents', icon: ShieldCheck },
+    ],
+  },
+  {
+    label: 'Website',
+    items: [
+      { to: '/admin/portfolio', label: 'Portfolio', icon: Images },
+      { to: '/admin/pricing', label: 'Pricing', icon: Tag },
+      { to: '/admin/reviews', label: 'Reviews', icon: Star, badge: 'reviews' },
+      { to: '/admin/settings', label: 'Settings', icon: Settings },
+    ],
+  },
 ];
+const allItems = groups.flatMap((g) => g.items);
+const tabPaths = ['/admin', '/admin/inquiries', '/admin/projects', '/admin/invoices'];
+const tabs = tabPaths.map((p) => allItems.find((i) => i.to === p)!);
 
 export default function AdminLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [counts, setCounts] = useState({ inquiries: 0, reviews: 0 });
   const { logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
+  const isActive = (path: string) =>
+    path === '/admin' ? location.pathname === '/admin' : location.pathname.startsWith(path);
+  const current = allItems.find((i) => isActive(i.to));
+  const isSubpage = current && location.pathname !== current.to;
+
+  // Refresh "needs attention" counts on every navigation, so they clear after acting on them.
+  useEffect(() => {
+    setMoreOpen(false);
+    api.get('/admin/dashboard')
+      .then(({ data }) => setCounts({ inquiries: data.pending_inquiries ?? 0, reviews: data.pending_reviews ?? 0 }))
+      .catch(() => {});
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMoreOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = ''; window.removeEventListener('keydown', onKey); };
+  }, [moreOpen]);
+
+  async function handleLogout() {
     await logout();
     navigate('/login');
-  };
+  }
 
-  const isActive = (path: string) => {
-    if (path === '/admin') return location.pathname === '/admin';
-    return location.pathname.startsWith(path);
-  };
+  const badgeFor = (item: NavItem) => (item.badge ? counts[item.badge] : 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Mobile top bar */}
-      <div className="lg:hidden sticky top-0 z-50 flex items-center justify-between bg-primary text-white px-4 h-14">
-        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-        <span className="font-bold">MAD Photos Admin</span>
-        <button onClick={handleLogout} className="text-sm text-gray-300 hover:text-white">
-          Logout
-        </button>
-      </div>
+    <div className="min-h-dvh bg-wash text-ink">
+      {/* Desktop sidebar */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-line bg-wash lg:flex">
+        <Link to="/admin" className="flex h-14 items-center gap-2.5 px-5">
+          <img src="/mad_photos.svg" alt="" className="h-7 w-auto" />
+          <span className="text-sm font-semibold">Studio admin</span>
+        </Link>
+        <nav className="flex-1 overflow-y-auto px-3 pb-4" aria-label="Admin">
+          {groups.map((g) => (
+            <div key={g.label} className="mt-4 first:mt-2">
+              <p className="px-2 pb-1.5 text-xs font-medium text-fixer">{g.label}</p>
+              <ul className="space-y-0.5">
+                {g.items.map((item) => {
+                  const active = isActive(item.to);
+                  const n = badgeFor(item);
+                  return (
+                    <li key={item.to}>
+                      <Link to={item.to} aria-current={active ? 'page' : undefined}
+                        className={cn('flex h-9 items-center gap-2.5 rounded-md px-2 text-sm transition-colors',
+                          active ? 'bg-white font-medium text-ink shadow-sm ring-1 ring-line' : 'text-fixer hover:bg-white/70 hover:text-ink')}>
+                        <item.icon className="size-4 shrink-0" />
+                        <span className="flex-1">{item.label}</span>
+                        {n > 0 && (
+                          <span className="min-w-5 rounded-full bg-safelight px-1.5 text-center text-[11px] font-semibold leading-5 text-white tabular-nums"
+                            aria-label={`${n} waiting`}>{n}</span>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </nav>
+        <div className="space-y-0.5 border-t border-line p-3">
+          <a href="/" target="_blank" rel="noreferrer"
+            className="flex h-9 items-center gap-2.5 rounded-md px-2 text-sm text-fixer hover:bg-white/70 hover:text-ink">
+            <ExternalLink className="size-4" /> View website
+          </a>
+          <button onClick={handleLogout}
+            className="flex h-9 w-full items-center gap-2.5 rounded-md px-2 text-sm text-fixer hover:bg-white/70 hover:text-ink">
+            <LogOut className="size-4" /> Log out
+          </button>
+        </div>
+      </aside>
 
-      <div className="flex">
-        {/* Sidebar overlay for mobile */}
-        {sidebarOpen && (
-          <div className="lg:hidden fixed inset-0 z-40 bg-black/50" onClick={() => setSidebarOpen(false)} />
-        )}
-
-        {/* Sidebar */}
-        <aside
-          className={`fixed lg:sticky top-0 left-0 z-50 lg:z-auto h-screen w-64 bg-primary text-white flex flex-col transition-transform duration-200 ${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-          }`}
-        >
-          <div className="hidden lg:flex items-center h-16 px-6 border-b border-white/10">
-            <Link to="/admin" className="text-xl font-bold">
-              MAD <span className="text-accent">Admin</span>
-            </Link>
-          </div>
-          <nav className="flex-1 px-3 py-4 overflow-y-auto">
-            {sidebarLinks.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 mb-1 rounded-lg text-sm font-medium transition-colors ${
-                  isActive(link.to)
-                    ? 'bg-accent text-primary'
-                    : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={link.icon} />
-                </svg>
-                {link.label}
-              </Link>
-            ))}
+      <div className="lg:pl-60">
+        {/* Top bar: breadcrumb on desktop, page name on mobile */}
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-white/90 px-4 backdrop-blur lg:px-8">
+          <img src="/mad_photos.svg" alt="" className="h-6 w-auto lg:hidden" />
+          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm">
+            <span className="hidden text-fixer lg:inline">Admin</span>
+            <span className="hidden text-line lg:inline">/</span>
+            {isSubpage ? (
+              <>
+                <Link to={current.to} className="text-fixer hover:text-ink">{current.label}</Link>
+                <span className="text-line">/</span>
+                <span className="truncate font-medium">Details</span>
+              </>
+            ) : (
+              <span className="truncate font-medium">{current?.label ?? 'Admin'}</span>
+            )}
           </nav>
-          <div className="hidden lg:block px-3 py-4 border-t border-white/10">
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              Logout
-            </button>
-          </div>
-        </aside>
+        </header>
 
-        {/* Main content */}
-        <main className="flex-1 min-h-screen lg:min-h-0">
-          <div className="p-4 lg:p-8 max-w-7xl">
-            <Outlet />
-          </div>
+        <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-12 lg:pt-8">
+          <Outlet />
         </main>
       </div>
+
+      {/* Mobile tab bar */}
+      <nav aria-label="Admin" className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+        <ul className="grid grid-cols-5">
+          {tabs.map((item) => {
+            const active = isActive(item.to);
+            const n = badgeFor(item);
+            return (
+              <li key={item.to}>
+                <Link to={item.to} aria-current={active ? 'page' : undefined}
+                  className={cn('flex h-16 flex-col items-center justify-center gap-1 text-[11px]', active ? 'font-medium text-ink' : 'text-fixer')}>
+                  <span className="relative">
+                    <item.icon className="size-5" strokeWidth={active ? 2.25 : 1.75} />
+                    {n > 0 && <span className="absolute -right-1 -top-0.5 size-2 rounded-full bg-safelight ring-2 ring-white" />}
+                  </span>
+                  {item.label}
+                </Link>
+              </li>
+            );
+          })}
+          <li>
+            <button onClick={() => setMoreOpen(true)} aria-expanded={moreOpen}
+              className={cn('flex h-16 w-full flex-col items-center justify-center gap-1 text-[11px]',
+                current && !tabPaths.includes(current.to) ? 'font-medium text-ink' : 'text-fixer')}>
+              <span className="relative">
+                <Menu className="size-5" />
+                {counts.reviews > 0 && <span className="absolute -right-1 -top-0.5 size-2 rounded-full bg-safelight ring-2 ring-white" />}
+              </span>
+              More
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      {/* Mobile "More" sheet */}
+      {moreOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="More pages">
+          <div className="absolute inset-0 bg-ink/40" onClick={() => setMoreOpen(false)} />
+          <div className="develop absolute inset-x-0 bottom-0 rounded-t-xl bg-white px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2">
+            <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-line" />
+            <ul className="grid grid-cols-3 gap-1">
+              {allItems.filter((i) => !tabPaths.includes(i.to)).map((item) => {
+                const n = badgeFor(item);
+                return (
+                  <li key={item.to}>
+                    <Link to={item.to}
+                      className={cn('relative flex h-20 flex-col items-center justify-center gap-2 rounded-lg text-center text-[13px]',
+                        isActive(item.to) ? 'bg-wash font-medium' : 'hover:bg-wash')}>
+                      <item.icon className="size-5" />
+                      {item.label}
+                      {n > 0 && <span className="absolute right-3 top-3 min-w-5 rounded-full bg-safelight px-1.5 text-[11px] font-semibold leading-5 text-white">{n}</span>}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="mt-2 grid grid-cols-2 gap-2 border-t border-line pt-3">
+              <a href="/" target="_blank" rel="noreferrer" className="flex h-11 items-center justify-center gap-2 rounded-md border border-line text-sm">
+                <ExternalLink className="size-4" /> View website
+              </a>
+              <button onClick={handleLogout} className="flex h-11 items-center justify-center gap-2 rounded-md border border-line text-sm">
+                <LogOut className="size-4" /> Log out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
