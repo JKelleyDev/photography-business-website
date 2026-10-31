@@ -2,13 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api/client';
 import { User, Project } from '../../types';
-import Button from '../../components/ui/Button';
-
-interface LineItem {
-  description: string;
-  amount_dollars: string;
-  quantity: number;
-}
+import { Button, Card, Field, Input, PageHeader, Select } from '../../components/admin/ui';
+import LineItems, { LineItem, emptyLine } from '../../components/admin/LineItems';
 
 export default function InvoiceCreate() {
   const [clients, setClients] = useState<User[]>([]);
@@ -16,7 +11,7 @@ export default function InvoiceCreate() {
   const [projectId, setProjectId] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [dueDate, setDueDate] = useState('');
-  const [lineItems, setLineItems] = useState<LineItem[]>([{ description: '', amount_dollars: '', quantity: 1 }]);
+  const [lineItems, setLineItems] = useState<LineItem[]>([emptyLine()]);
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -41,7 +36,6 @@ export default function InvoiceCreate() {
     api.get(`/admin/projects?client_id=${clientId}`).then(({ data }) => {
       const eligible = data.projects.filter((p: Project) => p.status === 'active' || p.status === 'delivered');
       setProjects(eligible);
-      // Keep projectId if it's still valid for this client
       const paramProjectId = searchParams.get('projectId');
       if (paramProjectId && eligible.some((p: Project) => p.id === paramProjectId)) {
         setProjectId(paramProjectId);
@@ -50,20 +44,6 @@ export default function InvoiceCreate() {
       }
     });
   }, [clientId]);
-
-  function addLineItem() {
-    setLineItems([...lineItems, { description: '', amount_dollars: '', quantity: 1 }]);
-  }
-
-  function updateLineItem(index: number, field: keyof LineItem, value: string | number) {
-    const updated = [...lineItems];
-    (updated[index] as any)[field] = value;
-    setLineItems(updated);
-  }
-
-  function removeLineItem(index: number) {
-    setLineItems(lineItems.filter((_, i) => i !== index));
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -87,66 +67,41 @@ export default function InvoiceCreate() {
     }
   }
 
-  const total = lineItems.reduce((sum, li) => sum + parseFloat(li.amount_dollars || '0') * li.quantity, 0);
-
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold text-primary mb-6">Create Invoice</h1>
-      <form onSubmit={handleSubmit} className="bg-white border rounded-lg p-6 space-y-6">
-        <div>
-          <label className="block text-sm font-medium mb-1">Client *</label>
-          <select required value={clientId} onChange={(e) => setClientId(e.target.value)} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent">
-            <option value="">Select a client</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>{c.name} ({c.email})</option>
-            ))}
-          </select>
-        </div>
-        {clientId && projects.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium mb-1">Project (optional)</label>
-            <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent">
-              <option value="">No project</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>{p.title} ({p.status})</option>
-              ))}
-            </select>
-          </div>
-        )}
-        <div>
-          <label className="block text-sm font-medium mb-1">Due Date *</label>
-          <input type="date" required value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent" />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-2">Line Items</label>
-          <div className="space-y-3">
-            {lineItems.map((item, idx) => (
-              <div key={idx} className="flex gap-2 items-start">
-                <input type="text" placeholder="Description" required value={item.description} onChange={(e) => updateLineItem(idx, 'description', e.target.value)} className="flex-1 px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent text-sm" />
-                <input type="number" step="0.01" min="0" placeholder="Amount ($)" required value={item.amount_dollars} onChange={(e) => updateLineItem(idx, 'amount_dollars', e.target.value)} className="w-28 px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent text-sm" />
-                <input type="number" min={1} value={item.quantity} onChange={(e) => updateLineItem(idx, 'quantity', Number(e.target.value))} className="w-16 px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent text-sm" />
-                {lineItems.length > 1 && (
-                  <button type="button" onClick={() => removeLineItem(idx)} className="text-red-500 hover:text-red-700 p-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+      <PageHeader title="New invoice" description="The client gets a link to view and pay it." />
+      <Card>
+        <form onSubmit={handleSubmit} className="space-y-5 p-4 sm:p-6">
+          <Field label="Client">
+            {(id) => (
+              <Select id={id} required value={clientId} onChange={(e) => setClientId(e.target.value)}>
+                <option value="">Choose a client</option>
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.email})</option>)}
+              </Select>
+            )}
+          </Field>
+          <div className="grid gap-5 sm:grid-cols-2">
+            {clientId && projects.length > 0 && (
+              <Field label="Project (optional)">
+                {(id) => (
+                  <Select id={id} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+                    <option value="">No project</option>
+                    {projects.map((p) => <option key={p.id} value={p.id}>{p.title} ({p.status})</option>)}
+                  </Select>
                 )}
-              </div>
-            ))}
+              </Field>
+            )}
+            <Field label="Due date">{(id) => <Input id={id} type="date" required value={dueDate} onChange={(e) => setDueDate(e.target.value)} />}</Field>
           </div>
-          <button type="button" onClick={addLineItem} className="mt-2 text-sm text-accent hover:underline">+ Add line item</button>
-        </div>
-
-        <div className="border-t pt-4 text-right">
-          <p className="text-lg font-bold">Total: ${total.toFixed(2)}</p>
-        </div>
-
-        <Button type="submit" disabled={submitting} className="w-full" size="lg">
-          {submitting ? 'Creating...' : 'Create Invoice'}
-        </Button>
-      </form>
+          <div className="border-t border-line pt-5">
+            <LineItems items={lineItems} onChange={setLineItems} />
+          </div>
+          <div className="flex flex-col-reverse gap-2 border-t border-line pt-5 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? 'Creating…' : 'Create invoice'}</Button>
+          </div>
+        </form>
+      </Card>
     </div>
   );
 }

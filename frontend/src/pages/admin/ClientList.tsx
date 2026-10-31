@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
+import { Search, UserPlus, Users } from 'lucide-react';
 import api from '../../api/client';
 import { User } from '../../types';
-import Button from '../../components/ui/Button';
-import Modal from '../../components/ui/Modal';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import {
+  Badge, Button, Dialog, EmptyState, Field, Input, List, ListSkeleton, PageHeader, Select, Toolbar,
+} from '../../components/admin/ui';
+
+const initials = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
 
 export default function ClientList() {
   const [clients, setClients] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ email: '', name: '', phone: '' });
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'newest' | 'oldest'>('newest');
@@ -23,21 +27,22 @@ export default function ClientList() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    await api.post('/admin/clients', form);
-    setShowAdd(false);
-    setForm({ email: '', name: '', phone: '' });
-    load();
+    setSaving(true);
+    try {
+      await api.post('/admin/clients', form);
+      setShowAdd(false);
+      setForm({ email: '', name: '', phone: '' });
+      load();
+    } finally {
+      setSaving(false);
+    }
   }
 
   const filtered = clients
     .filter((c) => {
       if (!search) return true;
       const q = search.toLowerCase();
-      return (
-        c.name?.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q) ||
-        c.phone?.toLowerCase().includes(q)
-      );
+      return c.name?.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || c.phone?.toLowerCase().includes(q);
     })
     .sort((a, b) => {
       if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
@@ -45,91 +50,67 @@ export default function ClientList() {
       return sortBy === 'newest' ? -diff : diff;
     });
 
-  if (loading) return <LoadingSpinner />;
+  const addBtn = <Button onClick={() => setShowAdd(true)}><UserPlus /> Add client</Button>;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-primary">Clients</h1>
-        <Button onClick={() => setShowAdd(true)}>Add Client</Button>
-      </div>
+      <PageHeader title="Clients" description="People with an account for galleries and invoices." actions={addBtn} />
 
-      <div className="flex flex-wrap gap-3 mb-4">
-        <input
-          type="text"
-          placeholder="Search by name, email, or phone…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 min-w-48 px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent bg-white"
-        />
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-          className="text-sm border rounded-lg px-3 py-2 bg-white outline-none focus:ring-2 focus:ring-accent"
-        >
+      <Toolbar>
+        <div className="relative sm:w-80">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fixer" />
+          <Input type="search" aria-label="Search clients" placeholder="Search name, email or phone"
+            value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        </div>
+        <Select aria-label="Sort" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} className="sm:w-40">
           <option value="newest">Newest first</option>
           <option value="oldest">Oldest first</option>
           <option value="name">Name A–Z</option>
-        </select>
-      </div>
+        </Select>
+      </Toolbar>
 
-      <div className="bg-white border rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600 hidden sm:table-cell">Phone</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-muted">
-                  {search ? 'No clients match your search.' : 'No clients yet.'}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((client) => (
-                <tr key={client.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium">{client.name || '—'}</td>
-                  <td className="px-4 py-3 text-muted">
-                    <a href={`mailto:${client.email}`} className="hover:text-accent">{client.email}</a>
-                  </td>
-                  <td className="px-4 py-3 text-muted hidden sm:table-cell">
-                    {client.phone ? <a href={`tel:${client.phone}`} className="hover:text-accent">{client.phone}</a> : '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${client.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                      {client.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {loading ? <ListSkeleton /> : filtered.length === 0 ? (
+        <EmptyState icon={<Users />} title={search ? 'No matching clients' : 'No clients yet'} action={search ? undefined : addBtn}>
+          {search ? 'Check the spelling, or search by email instead.' : 'Add a client and they’ll get an email to set their password.'}
+        </EmptyState>
+      ) : (
+        <List>
+          <div className="hidden grid-cols-[1fr_1fr_10rem_6rem] gap-4 bg-wash px-5 py-2.5 text-xs font-medium text-fixer md:grid">
+            <span>Name</span><span>Email</span><span>Phone</span><span>Status</span>
+          </div>
+          {filtered.map((c) => (
+            <div key={c.id} className="flex items-center gap-3 px-4 py-3 md:grid md:grid-cols-[1fr_1fr_10rem_6rem] md:gap-4 md:px-5">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-wash text-xs font-semibold text-fixer">{initials(c.name || c.email)}</span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{c.name || 'No name'}</p>
+                  <a href={`mailto:${c.email}`} className="block truncate text-[13px] text-fixer hover:text-ink md:hidden">{c.email}</a>
+                </div>
+              </div>
+              <a href={`mailto:${c.email}`} className="hidden truncate text-sm text-fixer hover:text-ink md:block">{c.email}</a>
+              <span className="hidden text-sm text-fixer md:block">
+                {c.phone ? <a href={`tel:${c.phone}`} className="hover:text-ink">{c.phone}</a> : '—'}
+              </span>
+              <span className="ml-auto md:ml-0">
+                <Badge tone={c.is_active ? 'success' : 'outline'}>{c.is_active ? 'Active' : 'Inactive'}</Badge>
+              </span>
+            </div>
+          ))}
+        </List>
+      )}
 
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add Client">
-        <form onSubmit={handleCreate} className="space-y-4">
-          <p className="text-sm text-muted">An invite email will be sent to set their password.</p>
-          <div>
-            <label className="block text-sm font-medium mb-1">Email *</label>
-            <input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent" />
+      <Dialog open={showAdd} onClose={() => setShowAdd(false)} title="Add client"
+        description="We’ll email them a link to set their password.">
+        <form id="add-client" onSubmit={handleCreate} className="space-y-4">
+          <Field label="Name">{(id) => <Input id={id} required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />}</Field>
+          <Field label="Email">{(id) => <Input id={id} type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />}</Field>
+          <Field label="Phone (optional)">{(id) => <Input id={id} type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />}</Field>
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Sending invite…' : 'Add and send invite'}</Button>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Name *</label>
-            <input type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Phone</label>
-            <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent" />
-          </div>
-          <Button type="submit" className="w-full">Create & Send Invite</Button>
         </form>
-      </Modal>
+      </Dialog>
     </div>
   );
 }

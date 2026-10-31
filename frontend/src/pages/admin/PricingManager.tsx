@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
+import { Eye, EyeOff, Pencil, Plus, Tag, Trash2 } from 'lucide-react';
 import api from '../../api/client';
 import { PricingPackage } from '../../types';
 import { formatCurrency } from '../../utils/formatCurrency';
-import Button from '../../components/ui/Button';
-import Modal from '../../components/ui/Modal';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import {
+  Badge, Button, Checkbox, Dialog, EmptyState, Field, Input, List, ListSkeleton, PageHeader, Textarea, cn,
+} from '../../components/admin/ui';
 
 const emptyForm = { name: '', description: '', price_dollars: '', price_display: '', features: '', is_custom: false };
 
@@ -14,6 +15,7 @@ export default function PricingManager() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { load(); }, []);
 
@@ -50,103 +52,92 @@ export default function PricingManager() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const priceCents = Math.round(parseFloat(form.price_dollars || '0') * 100);
+    setSaving(true);
     const payload = {
       name: form.name,
       description: form.description,
-      price_cents: priceCents,
+      price_cents: Math.round(parseFloat(form.price_dollars || '0') * 100),
       price_display: form.price_display,
       features: form.features.split('\n').filter(Boolean),
       is_custom: form.is_custom,
     };
-    if (editingId) {
-      await api.put(`/admin/pricing/${editingId}`, payload);
-    } else {
-      await api.post('/admin/pricing', payload);
+    try {
+      if (editingId) await api.put(`/admin/pricing/${editingId}`, payload);
+      else await api.post('/admin/pricing', payload);
+      closeForm();
+      load();
+    } finally {
+      setSaving(false);
     }
-    closeForm();
-    load();
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this package?')) return;
+    if (!confirm('Delete this package? This can’t be undone.')) return;
     await api.delete(`/admin/pricing/${id}`);
     load();
   }
 
-  if (loading) return <LoadingSpinner />;
+  async function toggleVisible(pkg: PricingPackage) {
+    setPackages((prev) => prev.map((p) => (p.id === pkg.id ? { ...p, is_visible: !p.is_visible } : p)));
+    await api.put(`/admin/pricing/${pkg.id}`, { is_visible: !pkg.is_visible });
+    load();
+  }
+
+  const addBtn = <Button onClick={openCreate}><Plus /> Add package</Button>;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-primary">Pricing Packages</h1>
-        <Button onClick={openCreate}>Add Package</Button>
-      </div>
+      <PageHeader title="Pricing" description="Packages shown on the public pricing page, in this order." actions={addBtn} />
 
-      <div className="space-y-4">
-        {packages.map((pkg) => (
-          <div key={pkg.id} className={`bg-white border rounded-lg p-4 flex items-center justify-between${!pkg.is_visible ? ' opacity-50' : ''}`}>
-            <div className="flex items-center gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold">{pkg.name}</h3>
-                  {!pkg.is_visible && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Hidden</span>}
+      {loading ? <ListSkeleton rows={3} /> : packages.length === 0 ? (
+        <EmptyState icon={<Tag />} title="No packages yet" action={addBtn}>
+          Add a package so visitors can book from the pricing page.
+        </EmptyState>
+      ) : (
+        <List>
+          {packages.map((pkg) => (
+            <div key={pkg.id} className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+              <div className={cn('min-w-0 flex-1', !pkg.is_visible && 'opacity-60')}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-medium">{pkg.name}</p>
+                  {!pkg.is_visible && <Badge tone="outline">Hidden</Badge>}
                 </div>
-                <p className="text-sm text-muted">{pkg.is_custom ? 'Custom Quote' : pkg.price_display || formatCurrency(pkg.price_cents)}</p>
-                <p className="text-xs text-muted mt-1">{pkg.features.length} features</p>
+                <p className="mt-0.5 text-[13px] text-fixer">
+                  {pkg.is_custom ? 'Custom quote' : pkg.price_display || formatCurrency(pkg.price_cents)}
+                  {' — '}{pkg.features.length} {pkg.features.length === 1 ? 'feature' : 'features'}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-1">
+                <Button variant="ghost" size="icon" onClick={() => toggleVisible(pkg)}
+                  aria-label={pkg.is_visible ? `Hide ${pkg.name}` : `Show ${pkg.name}`} title={pkg.is_visible ? 'Hide from website' : 'Show on website'}>
+                  {pkg.is_visible ? <Eye /> : <EyeOff />}
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => openEdit(pkg)} aria-label={`Edit ${pkg.name}`}><Pencil /></Button>
+                <Button variant="ghost" size="icon" onClick={() => handleDelete(pkg.id)} aria-label={`Delete ${pkg.name}`} className="text-safelight hover:bg-red-50"><Trash2 /></Button>
               </div>
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async () => { await api.put(`/admin/pricing/${pkg.id}`, { is_visible: !pkg.is_visible }); load(); }}
-                title={pkg.is_visible ? 'Hide package' : 'Show package'}
-              >
-                {pkg.is_visible ? (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" /></svg>
-                )}
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => openEdit(pkg)}>Edit</Button>
-              <Button variant="danger" size="sm" onClick={() => handleDelete(pkg.id)}>Delete</Button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </List>
+      )}
 
-      <Modal open={showForm} onClose={closeForm} title={editingId ? 'Edit Package' : 'Add Pricing Package'}>
+      <Dialog open={showForm} onClose={closeForm} title={editingId ? 'Edit package' : 'Add package'}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Name *</label>
-            <input type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent" />
+          <Field label="Name">{(id) => <Input id={id} required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />}</Field>
+          <Field label="Description">{(id) => <Textarea id={id} rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />}</Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Price ($)">{(id) => <Input id={id} type="number" inputMode="decimal" step="0.01" min="0" placeholder="500.00" value={form.price_dollars} onChange={(e) => setForm({ ...form, price_dollars: e.target.value })} />}</Field>
+            <Field label="Price shown on website" hint="Optional. Overrides the number.">{(id) => <Input id={id} placeholder="Starting at $500" value={form.price_display} onChange={(e) => setForm({ ...form, price_display: e.target.value })} />}</Field>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Description *</label>
-            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent resize-none" />
+          <Field label="What's included" hint="One item per line.">{(id) => <Textarea id={id} rows={4} placeholder={'2 hour session\n50 edited photos\nOnline gallery'} value={form.features} onChange={(e) => setForm({ ...form, features: e.target.value })} />}</Field>
+          <Checkbox checked={form.is_custom} onChange={(v) => setForm({ ...form, is_custom: v })}>
+            Custom quote <span className="text-fixer">(hides the price and shows “Request a quote”)</span>
+          </Checkbox>
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={closeForm}>Cancel</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Saving…' : editingId ? 'Save changes' : 'Add package'}</Button>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Price ($)</label>
-              <input type="number" step="0.01" min="0" placeholder="500.00" value={form.price_dollars} onChange={(e) => setForm({ ...form, price_dollars: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Display Price</label>
-              <input type="text" placeholder="Starting at $500" value={form.price_display} onChange={(e) => setForm({ ...form, price_display: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Features (one per line)</label>
-            <textarea value={form.features} onChange={(e) => setForm({ ...form, features: e.target.value })} rows={4} placeholder="2 hour session&#10;50 edited photos&#10;Online gallery" className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent resize-none" />
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={form.is_custom} onChange={(e) => setForm({ ...form, is_custom: e.target.checked })} />
-            Custom quote (hide price, show "Contact for pricing")
-          </label>
-          <Button type="submit" className="w-full">{editingId ? 'Save Changes' : 'Create Package'}</Button>
         </form>
-      </Modal>
+      </Dialog>
     </div>
   );
 }

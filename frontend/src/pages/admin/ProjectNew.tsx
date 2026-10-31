@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api/client';
-import Button from '../../components/ui/Button';
+import { Button, Card, Field, Input, PageHeader, Textarea } from '../../components/admin/ui';
 
 export default function ProjectNew() {
   const [form, setForm] = useState({ title: '', description: '', client_email: '', client_name: '', categories: '' });
@@ -43,35 +43,31 @@ export default function ProjectNew() {
     }
   }
 
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm({ ...form, [k]: e.target.value });
+
   return (
-    <div className="max-w-xl">
-      <h1 className="text-2xl font-bold text-primary mb-6">New Project</h1>
-      <form onSubmit={handleSubmit} className="bg-white border rounded-lg p-6 space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Project Title *</label>
-          <input type="text" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Description</label>
-          <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent resize-none" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Client Email *</label>
-          <input type="email" required value={form.client_email} onChange={(e) => setForm({ ...form, client_email: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent" placeholder="client@example.com" />
-          <p className="text-xs text-muted mt-1">If this client doesn't have an account, one will be created automatically.</p>
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Client Name</label>
-          <input type="text" value={form.client_name} onChange={(e) => setForm({ ...form, client_name: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Categories (comma separated)</label>
-          <input type="text" value={form.categories} onChange={(e) => setForm({ ...form, categories: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-accent" placeholder="Wedding, Reception, Getting Ready" />
-        </div>
-        <Button type="submit" disabled={submitting} className="w-full" size="lg">
-          {submitting ? 'Creating...' : 'Create Project'}
-        </Button>
-      </form>
+    <div className="max-w-2xl">
+      <PageHeader title="New project"
+        description={inquiryId ? 'Filled in from the inquiry. Check the details, then create it.' : 'Set up a shoot so you can upload and deliver the photos.'} />
+      <Card>
+        <form onSubmit={handleSubmit} className="space-y-5 p-4 sm:p-6">
+          <Field label="Project title">{(id) => <Input id={id} required value={form.title} onChange={set('title')} placeholder="Smith wedding" />}</Field>
+          <Field label="Description">{(id) => <Textarea id={id} rows={3} value={form.description} onChange={set('description')} />}</Field>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="Client email" hint="We'll create an account if they don't have one.">
+              {(id) => <Input id={id} type="email" required value={form.client_email} onChange={set('client_email')} placeholder="client@example.com" />}
+            </Field>
+            <Field label="Client name">{(id) => <Input id={id} value={form.client_name} onChange={set('client_name')} />}</Field>
+          </div>
+          <Field label="Photo categories" hint="Separate with commas.">
+            {(id) => <Input id={id} value={form.categories} onChange={set('categories')} placeholder="Ceremony, Reception, Getting ready" />}
+          </Field>
+          <div className="flex flex-col-reverse gap-2 border-t border-line pt-5 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? 'Creating…' : 'Create project'}</Button>
+          </div>
+        </form>
+      </Card>
     </div>
   );
 }
