@@ -53,6 +53,15 @@ export default function Pricing() {
           <p className="text-muted-foreground leading-relaxed">
             Pick a package, or ask for a custom quote.
           </p>
+          <button
+            onClick={() => {
+              setShowForm(true);
+              requestAnimationFrame(() => document.getElementById('inquiry')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+            }}
+            className="mt-6 inline-flex items-center justify-center px-6 py-3 rounded-sm border border-ink text-ink hover:bg-ink hover:text-paper transition-colors text-[15px] font-medium"
+          >
+            Ask about a custom package
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12 mb-20" aria-busy={loading}>
@@ -109,16 +118,7 @@ export default function Pricing() {
         </div>
 
         <div id="inquiry" className="max-w-xl scroll-mt-24">
-          {!showForm ? (
-            <div>
-              <button
-                onClick={() => setShowForm(true)}
-                className="inline-flex items-center justify-center px-10 py-3 rounded-sm bg-foreground text-background hover:bg-foreground/90 transition-colors text-sm font-medium"
-              >
-                Ask about a custom package
-              </button>
-            </div>
-          ) : submitted ? (
+          {!showForm ? null : submitted ? (
             <div className="py-12 px-8 border border-tray bg-card">
               <svg className="w-10 h-10 text-ink mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />

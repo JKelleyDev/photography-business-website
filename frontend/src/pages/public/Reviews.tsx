@@ -39,7 +39,18 @@ export default function Reviews() {
     <section className="py-12 md:py-20">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <div className="mb-12">
-          <h1 className="font-serif text-5xl md:text-7xl font-light tracking-[-0.02em] mb-6">Reviews</h1>
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <h1 className="font-serif text-5xl md:text-7xl font-light tracking-[-0.02em]">Reviews</h1>
+            <button
+              onClick={() => {
+              setShowForm(true);
+              requestAnimationFrame(() => document.getElementById('review-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+            }}
+              className="inline-flex items-center justify-center px-6 py-3 rounded-sm border border-ink text-ink hover:bg-ink hover:text-paper transition-colors text-[15px] font-medium"
+            >
+              Write a review
+            </button>
+          </div>
           {loading ? (
             <div className="skeleton h-6 w-56" aria-hidden />
           ) : reviews.length > 0 && (
@@ -79,17 +90,8 @@ export default function Reviews() {
           )}
         </div>
 
-        <div className="max-w-xl">
-          {!showForm ? (
-            <div>
-              <button
-                onClick={() => setShowForm(true)}
-                className="inline-flex items-center justify-center px-10 py-3 rounded-sm bg-foreground text-background hover:bg-foreground/90 transition-colors text-sm font-medium"
-              >
-                Write a review
-              </button>
-            </div>
-          ) : submitted ? (
+        <div id="review-form" className="max-w-xl scroll-mt-24">
+          {!showForm ? null : submitted ? (
             <div className="py-12 px-8 border border-tray bg-card">
               <h3 className="text-xl font-serif font-light mb-2">Thanks for the review</h3>
               <p className="text-muted-foreground">It will appear here once it's approved.</p>
