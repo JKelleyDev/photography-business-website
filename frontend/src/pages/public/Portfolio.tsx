@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../../api/client';
 import { PortfolioItem } from '../../types';
 import Lightbox from '../../components/ui/Lightbox';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import FadeImage from '../../components/ui/FadeImage';
 
 export default function Portfolio() {
   const [allItems, setAllItems] = useState<PortfolioItem[]>([]);
@@ -19,82 +19,69 @@ export default function Portfolio() {
 
   const categories = ['All', ...new Set(allItems.map((i) => i.category))].filter(Boolean);
   const items = activeCategory === 'All' ? allItems : allItems.filter((i) => i.category === activeCategory);
-
-  const lightboxImages = items.map((i) => ({
-    url: i.image_url || '',
-    alt: i.title,
-  }));
+  const lightboxImages = items.map((i) => ({ url: i.image_url || '', alt: i.title }));
 
   return (
-    <section className="py-24 md:py-32">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
-          <div>
-            <p className="text-sm text-muted-foreground mb-2 tracking-widest uppercase">
-              Selected Work
-            </p>
-            <h1 className="text-3xl md:text-4xl font-serif font-light">Portfolio</h1>
-          </div>
-
-          {categories.length > 1 && (
-            <div className="flex flex-wrap gap-2">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => setActiveCategory(category)}
-                  className={`px-4 py-2 text-sm rounded-full transition-colors ${
-                    activeCategory === category
-                      ? 'bg-foreground text-background'
-                      : 'bg-secondary text-secondary-foreground hover:bg-border'
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-          )}
+    <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 md:py-20 lg:px-8">
+      <div className="mb-8 flex flex-col gap-6 md:mb-12 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="font-serif text-5xl font-light tracking-[-0.02em] md:text-7xl">Portfolio</h1>
+          {!loading && <p className="mt-2 text-fixer">{items.length} frames</p>}
         </div>
 
-        {loading ? (
-          <LoadingSpinner />
-        ) : items.length === 0 ? (
-          <p className="text-center text-muted-foreground py-20">
-            No portfolio items yet. Check back soon.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {items.map((item, index) => (
-              <button
-                key={item.id}
-                onClick={() => setLightboxIndex(index)}
-                className="group relative aspect-[4/5] overflow-hidden rounded-lg bg-secondary text-left"
-              >
-                <img
-                  src={item.thumbnail_url || ''}
-                  alt={item.title}
-                  loading="lazy"
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors duration-300" />
-                <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                  <p className="text-sm text-background/80">{item.category}</p>
-                  <h3 className="text-lg font-medium text-background">{item.title}</h3>
-                </div>
-              </button>
-            ))}
+        {categories.length > 1 && (
+          <div role="tablist" aria-label="Filter by category"
+            className="no-scrollbar -mx-4 flex gap-6 overflow-x-auto border-b border-tray px-4 sm:mx-0 sm:px-0">
+            {categories.map((category) => {
+              const active = activeCategory === category;
+              return (
+                <button key={category} role="tab" aria-selected={active}
+                  onClick={() => setActiveCategory(category)}
+                  className={`-mb-px shrink-0 whitespace-nowrap border-b-2 py-3 text-[15px] transition-colors ${
+                    active ? 'border-safelight text-ink' : 'border-transparent text-fixer hover:text-ink'
+                  }`}>
+                  {category}
+                </button>
+              );
+            })}
           </div>
         )}
-
-        {lightboxIndex !== null && (
-          <Lightbox
-            images={lightboxImages}
-            currentIndex={lightboxIndex}
-            onClose={() => setLightboxIndex(null)}
-            onNext={() => setLightboxIndex(Math.min(lightboxIndex + 1, lightboxImages.length - 1))}
-            onPrev={() => setLightboxIndex(Math.max(lightboxIndex - 1, 0))}
-          />
-        )}
       </div>
+
+      {!loading && items.length === 0 ? (
+        <p className="py-20 text-fixer">Nothing in this category yet.</p>
+      ) : (
+        <ol className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3" aria-busy={loading}>
+          {(loading ? Array.from({ length: 9 }, () => null) : items).map((item, index) => (
+            <li key={item?.id ?? index}>
+              {item ? (
+                <button onClick={() => setLightboxIndex(index)} className="group block w-full"
+                  aria-label={`Open frame ${index + 1}`}>
+                  <div className="skeleton aspect-[4/5] overflow-hidden">
+                    <FadeImage src={item.thumbnail_url || ''} alt={`${item.category} photo, frame ${index + 1}`}
+                      className="h-full w-full object-cover group-hover:opacity-90" />
+                  </div>
+                </button>
+              ) : (
+                <div className="skeleton aspect-[4/5]" />
+              )}
+              <span className="mt-1 block font-mono text-xs tabular-nums text-fixer">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {lightboxIndex !== null && (
+        <Lightbox
+          images={lightboxImages}
+          currentIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          onNext={() => setLightboxIndex(Math.min(lightboxIndex + 1, lightboxImages.length - 1))}
+          onPrev={() => setLightboxIndex(Math.max(lightboxIndex - 1, 0))}
+        />
+      )}
     </section>
   );
 }

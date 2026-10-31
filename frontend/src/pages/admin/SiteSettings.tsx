@@ -8,18 +8,6 @@ interface Setting {
   value: string;
 }
 
-const settingKeys = [
-  { key: 'business_name', label: 'Business Name', type: 'text' },
-  { key: 'business_email', label: 'Email', type: 'email' },
-  { key: 'business_phone', label: 'Phone', type: 'tel' },
-  { key: 'business_address', label: 'Address', type: 'text' },
-  { key: 'instagram_url', label: 'Instagram URL', type: 'url' },
-  { key: 'facebook_url', label: 'Facebook URL', type: 'url' },
-  { key: 'tiktok_url', label: 'TikTok URL', type: 'url' },
-  { key: 'about_content', label: 'About Page Content', type: 'textarea' },
-  { key: 'hero_text', label: 'Homepage Hero Text', type: 'text' },
-];
-
 const paymentKeys = [
   { key: 'venmo_enabled', label: 'Enable Venmo', type: 'toggle' },
   { key: 'venmo_username', label: 'Venmo Username', type: 'text', placeholder: '@YourVenmo', dependsOn: 'venmo_enabled' },
@@ -29,7 +17,7 @@ const paymentKeys = [
   { key: 'zelle_info', label: 'Zelle Email or Phone', type: 'text', placeholder: 'you@email.com or (555)-555-5555', dependsOn: 'zelle_enabled' },
 ];
 
-const allKeys = [...settingKeys, ...paymentKeys];
+const allKeys = paymentKeys;
 
 export default function SiteSettings() {
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -111,11 +99,6 @@ export default function SiteSettings() {
   return (
     <div className="max-w-2xl">
       <h1 className="text-2xl font-bold text-primary mb-6">Site Settings</h1>
-
-      <div className="bg-white border rounded-lg p-6 space-y-4 mb-6">
-        <h2 className="text-lg font-semibold text-primary">Business Info</h2>
-        {settingKeys.map(({ key, label, type }) => renderField(key, label, type))}
-      </div>
 
       <div className="bg-white border rounded-lg p-6 space-y-4 mb-6">
         <h2 className="text-lg font-semibold text-primary">Payment Methods</h2>

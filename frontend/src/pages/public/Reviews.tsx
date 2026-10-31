@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import api from '../../api/client';
 import { Review } from '../../types';
 import StarRating from '../../components/ui/StarRating';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { formatDate } from '../../utils/dateHelpers';
 
 export default function Reviews() {
@@ -32,21 +31,30 @@ export default function Reviews() {
 
   const avgRating = reviews.length ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
 
-  if (loading) return <LoadingSpinner />;
 
   const inputClass =
-    'w-full px-4 py-2.5 bg-background border border-border rounded-lg focus:ring-2 focus:ring-stone/30 focus:border-stone outline-none text-sm';
+    'w-full px-4 py-3 bg-paper border border-fixer/40 rounded-sm focus:border-ink outline-none text-base';
 
   return (
-    <section className="py-24 md:py-32">
-      <div className="mx-auto max-w-4xl px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <p className="text-sm text-muted-foreground mb-2 tracking-widest uppercase">
-            Testimonials
-          </p>
-          <h1 className="text-3xl md:text-4xl font-serif font-light mb-6">Reviews</h1>
-          {reviews.length > 0 && (
-            <div className="flex items-center justify-center gap-3">
+    <section className="py-12 md:py-20">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-12">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <h1 className="font-serif text-5xl md:text-7xl font-light tracking-[-0.02em]">Reviews</h1>
+            <button
+              onClick={() => {
+              setShowForm(true);
+              requestAnimationFrame(() => document.getElementById('review-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+            }}
+              className="inline-flex items-center justify-center px-6 py-3 rounded-sm border border-ink text-ink hover:bg-ink hover:text-paper transition-colors text-[15px] font-medium"
+            >
+              Write a review
+            </button>
+          </div>
+          {loading ? (
+            <div className="skeleton h-6 w-56" aria-hidden />
+          ) : reviews.length > 0 && (
+            <div className="flex items-center gap-3">
               <StarRating rating={Math.round(avgRating)} readonly />
               <span className="text-sm text-muted-foreground">
                 {avgRating.toFixed(1)} from {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}
@@ -55,12 +63,20 @@ export default function Reviews() {
           )}
         </div>
 
-        <div className="space-y-6 mb-16">
-          {reviews.length === 0 ? (
-            <p className="text-center text-muted-foreground py-16">No reviews yet. Be the first.</p>
+        <div className="mb-16 divide-y divide-tray border-y border-tray" aria-busy={loading}>
+          {loading ? (
+            Array.from({ length: 3 }, (_, i) => (
+              <div key={i} className="space-y-3 py-10" aria-hidden>
+                <div className="skeleton h-4 w-32" />
+                <div className="skeleton h-7 w-full" />
+                <div className="skeleton h-7 w-4/5" />
+              </div>
+            ))
+          ) : reviews.length === 0 ? (
+            <p className="text-muted-foreground py-16">No reviews yet. Worked with us? Write the first one.</p>
           ) : (
             reviews.map((review) => (
-              <div key={review.id} className="p-8 rounded-lg border border-border bg-card">
+              <div key={review.id} className="py-10">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="font-medium">{review.author_name}</h3>
@@ -68,33 +84,24 @@ export default function Reviews() {
                   </div>
                   <StarRating rating={review.rating} readonly />
                 </div>
-                <p className="text-foreground leading-relaxed">{review.body}</p>
+                <blockquote className="font-serif text-2xl md:text-3xl font-light leading-snug">{review.body}</blockquote>
               </div>
             ))
           )}
         </div>
 
-        <div className="max-w-xl mx-auto">
-          {!showForm ? (
-            <div className="text-center">
-              <button
-                onClick={() => setShowForm(true)}
-                className="inline-flex items-center justify-center px-10 py-3 rounded-full bg-foreground text-background hover:bg-foreground/90 transition-colors text-sm font-medium"
-              >
-                Leave a Review
-              </button>
-            </div>
-          ) : submitted ? (
-            <div className="text-center py-16 rounded-lg border border-border bg-card">
-              <h3 className="text-xl font-serif font-light mb-2">Thank You</h3>
-              <p className="text-muted-foreground">Your review has been submitted and is pending approval.</p>
+        <div id="review-form" className="max-w-xl scroll-mt-24">
+          {!showForm ? null : submitted ? (
+            <div className="py-12 px-8 border border-tray bg-card">
+              <h3 className="text-xl font-serif font-light mb-2">Thanks for the review</h3>
+              <p className="text-muted-foreground">It will appear here once it's approved.</p>
             </div>
           ) : (
-            <div className="p-8 rounded-lg border border-border bg-card">
-              <h2 className="text-2xl font-serif font-light mb-8">Leave a Review</h2>
+            <div className="p-8 border border-tray bg-card">
+              <h2 className="text-2xl font-serif font-light mb-8">Write a review</h2>
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                  <label className="block text-xs font-medium uppercase tracking-widest text-muted-foreground mb-2">Name *</label>
+                  <label className="block text-sm font-medium text-ink mb-1.5">Name *</label>
                   <input
                     type="text"
                     required
@@ -104,7 +111,7 @@ export default function Reviews() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium uppercase tracking-widest text-muted-foreground mb-2">Email *</label>
+                  <label className="block text-sm font-medium text-ink mb-1.5">Email *</label>
                   <input
                     type="email"
                     required
@@ -114,11 +121,11 @@ export default function Reviews() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium uppercase tracking-widest text-muted-foreground mb-2">Rating *</label>
+                  <label className="block text-sm font-medium text-ink mb-1.5">Rating *</label>
                   <StarRating rating={formData.rating} onChange={(r) => setFormData({ ...formData, rating: r })} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium uppercase tracking-widest text-muted-foreground mb-2">Review *</label>
+                  <label className="block text-sm font-medium text-ink mb-1.5">Review *</label>
                   <textarea
                     required
                     rows={4}
@@ -131,9 +138,9 @@ export default function Reviews() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full px-6 py-3 rounded-full bg-foreground text-background hover:bg-foreground/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-6 py-3 rounded-sm bg-foreground text-background hover:bg-foreground/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {submitting ? 'Submitting...' : 'Submit Review'}
+                  {submitting ? 'Submitting...' : 'Post review'}
                 </button>
               </form>
             </div>

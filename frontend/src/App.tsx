@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import LoadingSpinner from './components/ui/LoadingSpinner';
@@ -14,8 +14,8 @@ function ScrollToTop() {
 
 // Layouts
 import PublicLayout from './components/layout/PublicLayout';
-import AdminLayout from './components/layout/AdminLayout';
-import ClientLayout from './components/layout/ClientLayout';
+const AdminLayout = lazy(() => import('./components/layout/AdminLayout'));
+const ClientLayout = lazy(() => import('./components/layout/ClientLayout'));
 
 // Public pages
 import Home from './pages/public/Home';
@@ -25,36 +25,36 @@ import About from './pages/public/About';
 import Reviews from './pages/public/Reviews';
 
 // Auth pages
-import Login from './pages/auth/Login';
-import SetPassword from './pages/auth/SetPassword';
-import ForgotPassword from './pages/auth/ForgotPassword';
-import ResetPassword from './pages/auth/ResetPassword';
+const Login = lazy(() => import('./pages/auth/Login'));
+const SetPassword = lazy(() => import('./pages/auth/SetPassword'));
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 
 // Gallery pages
-import SharedGallery from './pages/gallery/SharedGallery';
-import ImageView from './pages/gallery/ImageView';
+const SharedGallery = lazy(() => import('./pages/gallery/SharedGallery'));
+const ImageView = lazy(() => import('./pages/gallery/ImageView'));
 
 // Public invoice
-import InvoicePublic from './pages/public/InvoicePublic';
+const InvoicePublic = lazy(() => import('./pages/public/InvoicePublic'));
 
 // Admin pages
-import Dashboard from './pages/admin/Dashboard';
-import PortfolioManager from './pages/admin/PortfolioManager';
-import PricingManager from './pages/admin/PricingManager';
-import InquiryList from './pages/admin/InquiryList';
-import ReviewManager from './pages/admin/ReviewManager';
-import ProjectList from './pages/admin/ProjectList';
-import ProjectNew from './pages/admin/ProjectNew';
-import ProjectDetail from './pages/admin/ProjectDetail';
-import ClientList from './pages/admin/ClientList';
-import InvoiceList from './pages/admin/InvoiceList';
-import InvoiceCreate from './pages/admin/InvoiceCreate';
-import SiteSettings from './pages/admin/SiteSettings';
-import GalleryConsents from './pages/admin/GalleryConsents';
+const Dashboard = lazy(() => import('./pages/admin/Dashboard'));
+const PortfolioManager = lazy(() => import('./pages/admin/PortfolioManager'));
+const PricingManager = lazy(() => import('./pages/admin/PricingManager'));
+const InquiryList = lazy(() => import('./pages/admin/InquiryList'));
+const ReviewManager = lazy(() => import('./pages/admin/ReviewManager'));
+const ProjectList = lazy(() => import('./pages/admin/ProjectList'));
+const ProjectNew = lazy(() => import('./pages/admin/ProjectNew'));
+const ProjectDetail = lazy(() => import('./pages/admin/ProjectDetail'));
+const ClientList = lazy(() => import('./pages/admin/ClientList'));
+const InvoiceList = lazy(() => import('./pages/admin/InvoiceList'));
+const InvoiceCreate = lazy(() => import('./pages/admin/InvoiceCreate'));
+const SiteSettings = lazy(() => import('./pages/admin/SiteSettings'));
+const GalleryConsents = lazy(() => import('./pages/admin/GalleryConsents'));
 
 // Client pages
-import ClientDashboard from './pages/client/ClientDashboard';
-import InvoiceView from './pages/client/InvoiceView';
+const ClientDashboard = lazy(() => import('./pages/client/ClientDashboard'));
+const InvoiceView = lazy(() => import('./pages/client/InvoiceView'));
 
 function ProtectedRoute({ children, role }: { children: React.ReactNode; role: 'admin' | 'client' }) {
   const { user, loading } = useAuth();
@@ -68,6 +68,7 @@ export default function App() {
   return (
     <>
     <ScrollToTop />
+    <Suspense fallback={<LoadingSpinner size="lg" />}>
     <Routes>
       {/* Public pages */}
       <Route element={<PublicLayout />}>
@@ -131,6 +132,7 @@ export default function App() {
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
     </>
   );
 }

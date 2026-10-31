@@ -1,106 +1,166 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import api from '../../api/client';
+import { PortfolioItem } from '../../types';
+import FadeImage from '../../components/ui/FadeImage';
+import { heroDesktop, heroMobile } from '../../content/hero';
+import headshotsImg from '../../assets/services/headshots.jpg';
+import weddingsImg from '../../assets/services/weddings.jpg';
+import graduationImg from '../../assets/services/graduation.jpg';
+import maternityImg from '../../assets/services/maternity.jpg';
 
 const services = [
-  {
-    title: 'Weddings',
-    description:
-      'Your love story, beautifully told through candid moments and curated compositions.',
-  },
-  {
-    title: 'Portraits',
-    description:
-      'Individual, family, and professional portraits that capture personality and presence.',
-  },
-  {
-    title: 'Events',
-    description:
-      'Corporate events, parties, and milestones documented with care and precision.',
-  },
-  {
-    title: 'Editorial',
-    description:
-      'Creative, narrative-driven photography for publications and brand storytelling.',
-  },
+  { title: 'Professional headshots', image: headshotsImg, description: 'Clean, confident headshots for LinkedIn, company sites and team pages.' },
+  { title: 'Weddings', image: weddingsImg, description: 'The whole day, from getting ready to the last dance, mostly unposed.' },
+  { title: 'Graduation', image: graduationImg, description: 'Cap-and-gown portraits on campus or somewhere that marks the milestone.' },
+  { title: 'Maternity', image: maternityImg, description: 'Relaxed sessions outdoors or at home, in the last weeks before baby arrives.' },
 ];
 
+const frameNo = (i: number) => String(i + 1).padStart(2, '0');
+const hasStaticHero = Boolean(heroDesktop || heroMobile);
+
+/** Fallback when no built-in hero exists: pick the first portfolio photo whose shape suits the screen. */
+function usePortfolioHero(items: PortfolioItem[]) {
+  const [pick, setPick] = useState<PortfolioItem | null>(null);
+  useEffect(() => {
+    if (hasStaticHero || !items.length) return;
+    const wantLandscape = window.matchMedia('(min-width: 768px)').matches;
+    let cancelled = false;
+    Promise.all(
+      items.map(
+        (item) =>
+          new Promise<{ item: PortfolioItem; ratio: number }>((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve({ item, ratio: img.naturalWidth / img.naturalHeight });
+            img.onerror = () => resolve({ item, ratio: 0 });
+            img.src = item.thumbnail_url || '';
+          }),
+      ),
+    ).then((sized) => {
+      if (cancelled) return;
+      const fit = sized.find((s) => (wantLandscape ? s.ratio >= 1.3 : s.ratio > 0 && s.ratio <= 0.85));
+      setPick((fit ?? sized.find((s) => s.ratio > 0))?.item ?? null);
+    });
+    return () => { cancelled = true; };
+  }, [items]);
+  return pick;
+}
+
 export default function Home() {
+  const [items, setItems] = useState<PortfolioItem[]>([]);
+
+  useEffect(() => {
+    api.get('/portfolio', { params: { limit: '12' } })
+      .then(({ data }) => setItems(data.items ?? []))
+      .catch((err) => console.error('Failed to load portfolio', err));
+  }, []);
+
+  const hero = usePortfolioHero(items);
+  const strip = items;
+
   return (
     <>
-      {/* Hero */}
-      <section className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8 py-24 md:py-32">
-          <div className="max-w-3xl">
-            <p className="text-sm text-muted-foreground mb-4 tracking-widest uppercase">
-              MAD Photos
-            </p>
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-light leading-tight tracking-tight text-balance">
-              Capturing moments that tell your story
-            </h1>
-            <p className="mt-8 text-lg text-muted-foreground leading-relaxed max-w-xl">
-              Specializing in portrait, wedding, and event photography. Creating timeless
-              imagery with a modern, minimalist approach.
-            </p>
-            <div className="mt-10 flex flex-col sm:flex-row gap-4">
-              <Link
-                to="/portfolio"
-                className="inline-flex items-center justify-center px-8 py-3 rounded-full bg-foreground text-background hover:bg-foreground/90 transition-colors text-sm font-medium"
-              >
-                View Portfolio
-              </Link>
-              <Link
-                to="/pricing"
-                className="inline-flex items-center justify-center px-8 py-3 rounded-full border border-border hover:bg-secondary transition-colors text-sm font-medium"
-              >
-                Get in Touch
-              </Link>
-            </div>
+      {/* Hero: the lead frame, full bleed */}
+      <section className="relative h-[100svh] min-h-[560px] overflow-hidden bg-ink text-paper">
+        {hasStaticHero ? (
+          <picture>
+            {heroDesktop && <source media="(min-width: 768px)" srcSet={heroDesktop} />}
+            <img src={heroMobile || heroDesktop} alt="" fetchPriority="high"
+              className="develop absolute inset-0 h-full w-full object-cover" />
+          </picture>
+        ) : (
+          hero && (
+            <img src={hero.image_url || hero.thumbnail_url || ''} alt="" fetchPriority="high"
+              className="develop absolute inset-0 h-full w-full object-cover object-[50%_35%]" />
+          )
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/10 to-ink/30" />
+        <div className="relative mx-auto flex h-full max-w-7xl flex-col justify-end px-4 pb-12 sm:px-6 md:pb-20 lg:px-8">
+          <h1 className="max-w-4xl font-serif text-[2.75rem] font-light leading-[1.02] tracking-[-0.02em] sm:text-6xl lg:text-[5.5rem]">
+            Photographs of the days you&apos;ll want back
+          </h1>
+          <p className="mt-5 max-w-md text-[17px] leading-relaxed text-paper/80">
+            Headshots, weddings, graduation and maternity sessions by MAD Photos.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link to="/portfolio" className="rounded-sm bg-paper px-6 py-3.5 text-[15px] font-medium text-ink hover:bg-white">
+              See the work
+            </Link>
+            <Link to="/pricing" className="rounded-sm border border-paper/60 px-6 py-3.5 text-[15px] font-medium hover:bg-paper/10">
+              Check your date
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Services */}
-      <section className="py-24 md:py-32 border-t border-border">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <p className="text-sm text-muted-foreground mb-2 tracking-widest uppercase">
-              Services
-            </p>
-            <h2 className="text-3xl md:text-4xl font-serif font-light">
-              What we offer
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {services.map((service) => (
-              <div
-                key={service.title}
-                className="p-8 rounded-lg bg-card border border-border hover:border-stone/30 transition-colors"
-              >
-                <h3 className="text-lg font-medium mb-3">{service.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {service.description}
+      {/* Recent frames: a slow, looping film strip (pauses on hover/focus, static with reduced motion) */}
+      <section aria-label="Recent frames" className="border-b border-tray py-10 md:py-14">
+        <div className="mx-auto mb-4 flex max-w-7xl items-baseline justify-between px-4 sm:px-6 lg:px-8">
+          <h2 className="font-serif text-2xl font-light">Recent frames</h2>
+          <Link to="/portfolio" className="border-b border-ink text-[15px] hover:border-safelight">
+            Full portfolio
+          </Link>
+        </div>
+        <div className="filmstrip-wrap no-scrollbar overflow-x-auto motion-safe:overflow-hidden">
+          <ol
+            className="filmstrip flex w-max gap-2 px-2"
+            style={{ ['--strip-duration' as string]: `${Math.max(strip.length, 6) * 5}s` }}
+          >
+            {(strip.length ? [...strip, ...strip] : Array.from({ length: 12 }, () => null)).map((item, i) => {
+              const n = strip.length ? i % strip.length : i;
+              const duplicate = strip.length > 0 && i >= strip.length;
+              return (
+                <li key={i} aria-hidden={duplicate || undefined} className="w-[38vw] shrink-0 sm:w-[22vw] lg:w-[14vw]">
+                  <Link to="/portfolio" tabIndex={duplicate ? -1 : undefined} className="group block">
+                    <div className="skeleton aspect-[2/3] overflow-hidden">
+                      {item && (
+                        <FadeImage src={item.thumbnail_url || ''} alt={item.title}
+                          className="h-full w-full object-cover group-hover:opacity-85" />
+                      )}
+                    </div>
+                    <span className="mt-1.5 block font-mono text-[11px] tabular-nums text-fixer">{frameNo(n)}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </section>
+
+      {/* Services as an editorial list */}
+      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 md:py-28 lg:px-8">
+        <h2 className="mb-10 max-w-xl font-serif text-4xl font-light leading-tight md:text-5xl">
+          What we offer
+        </h2>
+        <ul className="border-t border-tray">
+          {services.map((s) => {
+            return (
+              <li key={s.title} className="grid grid-cols-[88px_1fr] items-center gap-4 border-b border-tray py-5 sm:grid-cols-[140px_1fr] md:grid-cols-12 md:gap-8 md:py-8">
+                <div className="skeleton aspect-[4/5] overflow-hidden md:col-span-2">
+                  <FadeImage src={s.image} alt="" width={640} height={800} className="h-full w-full object-cover" />
+                </div>
+                <h3 className="font-serif text-3xl font-light md:col-span-4 md:text-5xl">{s.title}</h3>
+                <p className="col-span-2 max-w-md text-[17px] leading-relaxed text-fixer sm:col-span-1 sm:col-start-2 md:col-span-5 md:col-start-8">
+                  {s.description}
                 </p>
-              </div>
-            ))}
-          </div>
-        </div>
+              </li>
+            );
+          })}
+        </ul>
       </section>
 
-      {/* CTA */}
-      <section className="py-24 md:py-32 bg-foreground text-background">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto">
-            <h2 className="text-3xl md:text-5xl font-serif font-light mb-6 text-balance">
-              Ready to create something beautiful?
-            </h2>
-            <p className="text-lg text-background/70 mb-10 leading-relaxed">
-              Let&apos;s discuss your vision and bring it to life. Reach out to explore how
-              we can work together.
+      {/* Booking CTA */}
+      <section className="bg-ink text-paper">
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-20 sm:px-6 md:grid-cols-12 md:py-28 lg:px-8">
+          <h2 className="font-serif text-4xl font-light leading-tight md:col-span-7 md:text-6xl">
+            Dates book up months ahead. Tell us yours.
+          </h2>
+          <div className="md:col-span-4 md:col-start-9 md:self-end">
+            <p className="mb-6 text-[17px] leading-relaxed text-paper/75">
+              See packages and send an inquiry. We reply within 24 hours.
             </p>
-            <Link
-              to="/pricing"
-              className="inline-flex items-center justify-center px-10 py-3 rounded-full bg-background text-foreground hover:bg-background/90 transition-colors text-sm font-medium"
-            >
-              View Packages &amp; Inquire
+            <Link to="/pricing" className="inline-block rounded-sm bg-safelight px-6 py-3.5 text-[15px] font-medium text-white hover:bg-safelight/90">
+              Check your date
             </Link>
           </div>
         </div>

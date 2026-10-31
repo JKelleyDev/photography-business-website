@@ -4,6 +4,7 @@ import api from '../../api/client';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDate } from '../../utils/dateHelpers';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { SITE } from '../../content/site';
 
 interface PublicInvoice {
   amount_cents: number;
@@ -11,7 +12,6 @@ interface PublicInvoice {
   due_date: string;
   line_items: { description: string; amount_cents: number; quantity: number }[];
   paid_at?: string;
-  business_name: string;
 }
 
 interface PaymentMethod {
@@ -101,7 +101,7 @@ export default function InvoicePublic() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">{invoice.business_name || 'MAD Photos'}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{SITE.name}</h1>
           <h2 className="text-lg font-semibold text-gray-700 mb-3">Your invoice is being prepared</h2>
           <p className="text-gray-500 text-sm">
             We&apos;re still putting the finishing touches on your invoice. You&apos;ll be able to view and pay it here once it&apos;s ready.
@@ -120,7 +120,7 @@ export default function InvoicePublic() {
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-lg mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">{invoice.business_name || 'MAD Photos'}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{SITE.name}</h1>
           <p className="text-gray-500 text-sm">Invoice</p>
         </div>
 
