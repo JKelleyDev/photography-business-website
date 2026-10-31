@@ -4,12 +4,16 @@ import api from '../../api/client';
 import { PortfolioItem } from '../../types';
 import FadeImage from '../../components/ui/FadeImage';
 import { heroDesktop, heroMobile } from '../../content/hero';
+import headshotsImg from '../../assets/services/headshots.jpg';
+import weddingsImg from '../../assets/services/weddings.jpg';
+import graduationImg from '../../assets/services/graduation.jpg';
+import maternityImg from '../../assets/services/maternity.jpg';
 
 const services = [
-  { title: 'Weddings', category: 'Wedding', description: 'The whole day, from getting ready to the last dance, mostly unposed.' },
-  { title: 'Portraits', category: 'Portrait', description: 'Individuals, families and headshots, in studio or somewhere that means something to you.' },
-  { title: 'Events', category: 'Event', description: 'Parties, milestones and company events, covered quietly from the edges of the room.' },
-  { title: 'Editorial', category: 'Editorial', description: 'Story-led photography for publications and brands.' },
+  { title: 'Professional headshots', image: headshotsImg, description: 'Clean, confident headshots for LinkedIn, company sites and team pages.' },
+  { title: 'Weddings', image: weddingsImg, description: 'The whole day, from getting ready to the last dance, mostly unposed.' },
+  { title: 'Graduation', image: graduationImg, description: 'Cap-and-gown portraits on campus or somewhere that marks the milestone.' },
+  { title: 'Maternity', image: maternityImg, description: 'Relaxed sessions outdoors or at home, in the last weeks before baby arrives.' },
 ];
 
 const frameNo = (i: number) => String(i + 1).padStart(2, '0');
@@ -53,8 +57,6 @@ export default function Home() {
 
   const hero = usePortfolioHero(items);
   const strip = items;
-  const photoFor = (category: string, fallback: number) =>
-    items.find((i) => i.category?.toLowerCase().startsWith(category.toLowerCase())) ?? items[fallback];
 
   return (
     <>
@@ -78,7 +80,7 @@ export default function Home() {
             Photographs of the days you&apos;ll want back
           </h1>
           <p className="mt-5 max-w-md text-[17px] leading-relaxed text-paper/80">
-            Weddings, portraits and events, made by MAD Photos.
+            Headshots, weddings, graduation and maternity sessions by MAD Photos.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link to="/portfolio" className="rounded-sm bg-paper px-6 py-3.5 text-[15px] font-medium text-ink hover:bg-white">
@@ -128,15 +130,14 @@ export default function Home() {
       {/* Services as an editorial list */}
       <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 md:py-28 lg:px-8">
         <h2 className="mb-10 max-w-xl font-serif text-4xl font-light leading-tight md:text-5xl">
-          What we photograph
+          What we offer
         </h2>
         <ul className="border-t border-tray">
-          {services.map((s, i) => {
-            const photo = photoFor(s.category, i + 1);
+          {services.map((s) => {
             return (
               <li key={s.title} className="grid grid-cols-[88px_1fr] items-center gap-4 border-b border-tray py-5 sm:grid-cols-[140px_1fr] md:grid-cols-12 md:gap-8 md:py-8">
                 <div className="skeleton aspect-[4/5] overflow-hidden md:col-span-2">
-                  {photo && <FadeImage src={photo.thumbnail_url || ''} alt="" className="h-full w-full object-cover" />}
+                  <FadeImage src={s.image} alt="" width={640} height={800} className="h-full w-full object-cover" />
                 </div>
                 <h3 className="font-serif text-3xl font-light md:col-span-4 md:text-5xl">{s.title}</h3>
                 <p className="col-span-2 max-w-md text-[17px] leading-relaxed text-fixer sm:col-span-1 sm:col-start-2 md:col-span-5 md:col-start-8">
